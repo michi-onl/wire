@@ -67,6 +67,10 @@
 ## Verify the userscript
 
 - `node --check static/patreon.user.js` — the syntax.
+- `node --test test/` — the mock check-in test. It mocks `/api/current_user`
+  and `/api/posts`. It tests the caps and the account gate. It sends no request
+  to patreon.com. The test sets `__WIRE_TEST__`, so the script skips the DOM
+  bootstrap and exports `sync` and its helpers on `globalThis.__wire`.
 - `curl -sS http://127.0.0.1:5001/patreon.user.js` — the route. FastHTML serves
   the file, and `app.py` needs no route for it.
 - A live test needs Firefox with Tampermonkey. Ungoogled Chromium has no Web

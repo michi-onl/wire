@@ -1,10 +1,5 @@
 # wire to-do
 
-## Ship and correctness
-
-- Add a check-in test with mock answers. Mock `/api/current_user` and
-  `/api/posts`. Test the caps. Send no request to patreon.com.
-
 ## Feature depth
 
 - Add a "load older" action. `/api/posts` gives a cursor. The script ignores it.
@@ -27,5 +22,4 @@
 
 ## Order
 
-1. Add the mock test.
-2. Add "load older" or the richer rows.
+1. Add "load older" or the richer rows.

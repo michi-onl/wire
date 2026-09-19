@@ -61,8 +61,13 @@ wire runs on a Proxmox container. The steps and the addresses are in
 
 ```sh
 node --check static/patreon.user.js
+node --test test/
 curl -sS http://127.0.0.1:5001/patreon.user.js
 ```
+
+`node --test test/` is the mock check-in test. It mocks `/api/current_user` and
+`/api/posts`, tests the caps and the account gate, and sends no request to
+patreon.com.
 
 A live test needs Firefox with Tampermonkey. Chromium browsers need a script
 manager. Install the script from `http://127.0.0.1:5001/patreon.user.js`. Keep
