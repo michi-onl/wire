@@ -39,6 +39,9 @@ per source. It is disabled by default to avoid being used as an amplification
 vector; set `WIRE_ALLOW_REFRESH=1` to re-enable it (and hide the refresh link
 until then).
 
+The dev reloader (watchfiles) is off by default for production; set
+`WIRE_RELOAD=1` while developing.
+
 If a source fails, the page still renders the rest and shows an
 `unavailable: …` line at the top.
 

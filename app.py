@@ -16,6 +16,7 @@ TTL = 300
 HOST = os.environ.get("WIRE_HOST", "127.0.0.1")
 PORT = int(os.environ.get("WIRE_PORT", "5001"))
 ALLOW_REFRESH = os.environ.get("WIRE_ALLOW_REFRESH", "0") == "1"
+RELOAD = os.environ.get("WIRE_RELOAD", "0") == "1"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126 Safari/537.36")
 
@@ -267,4 +268,4 @@ async def index(refresh: int = 0):
 
 
 if __name__ == "__main__":
-    serve(host=HOST, port=PORT)
+    serve(host=HOST, port=PORT, reload=RELOAD)
