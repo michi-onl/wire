@@ -25,3 +25,9 @@
   `:root` variable: `--sky-500` bar and footer rule, `--sky-50` page,
   `--sky-950` titles and header text, `--sky-600` muted meta, `--sky-300` vote
   arrow. Pico is disabled in `fast_app()`. No other code styles the page.
+- `ICONS` — the head links and metas for the favicon, the Apple touch icon, and
+  the manifest. `MANIFEST` — the webapp manifest. `/manifest.webmanifest`
+  returns `MANIFEST` as JSON. `static_path="static"` serves the icon files.
+- `static/favicon.svg` — the HN icon with a white W on a sky-500 square. The W
+  is the Verdana Regular glyph, kept as a path, not text. The PNG files come
+  from this SVG.

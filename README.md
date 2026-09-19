@@ -58,6 +58,11 @@ develop.
 If a source fails, the page shows the other sources. It also shows an
 `unavailable: …` line at the top.
 
+## Install as a webapp
+
+wire has a webapp manifest. You can add wire to your home screen. The icons
+live in `static/`.
+
 ## License
 
 [MIT](LICENSE)

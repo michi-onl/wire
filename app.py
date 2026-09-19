@@ -1,5 +1,6 @@
 import asyncio
 import html
+import json
 import os
 import re
 import time
@@ -8,7 +9,7 @@ from datetime import datetime, timezone
 import feedparser
 import httpx
 from fasthtml.common import (
-    A, B, Br, Div, Span, Style, Table, Td, Tr,
+    A, B, Br, Div, Link, Meta, Response, Span, Style, Table, Td, Tr,
     fast_app, serve,
 )
 
@@ -82,6 +83,37 @@ a:hover .logo { text-decoration: none; }
 .yclinks, .yclinks a { font-size: 8pt; color: var(--sky-600); }
 .spacer { height: 5px; }
 """
+
+SKY_500 = "#0ea5e9"
+SKY_50 = "#f0f9ff"
+
+ICONS = (
+    Link(rel="icon", type="image/svg+xml", href="/favicon.svg"),
+    Link(rel="icon", type="image/png", sizes="192x192", href="/icon-192.png"),
+    Link(rel="apple-touch-icon", sizes="180x180", href="/apple-touch-icon.png"),
+    Link(rel="manifest", href="/manifest.webmanifest"),
+    Meta(name="theme-color", content=SKY_500),
+    Meta(name="apple-mobile-web-app-capable", content="yes"),
+    Meta(name="apple-mobile-web-app-status-bar-style", content="default"),
+    Meta(name="apple-mobile-web-app-title", content="wire"),
+)
+
+MANIFEST = {
+    "name": "wire",
+    "short_name": "wire",
+    "description": "A minimal, read-only news reader with Hacker News' design.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": SKY_50,
+    "theme_color": SKY_500,
+    "icons": [
+        {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+        {"src": "/maskable-512.png", "sizes": "512x512", "type": "image/png",
+         "purpose": "maskable"},
+    ],
+}
 
 
 def epoch(dt):
@@ -272,8 +304,13 @@ def story_row(story):
     )
 
 
-app, rt = fast_app(title="wire", hdrs=(Style(CSS),),
-                   pico=False, surreal=False, htmx=False)
+app, rt = fast_app(title="wire", hdrs=(Style(CSS), *ICONS),
+                   static_path="static", pico=False, surreal=False, htmx=False)
+
+
+@rt("/manifest.webmanifest")
+def manifest():
+    return Response(json.dumps(MANIFEST), media_type="application/manifest+json")
 
 
 def nav():
