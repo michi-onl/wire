@@ -29,7 +29,15 @@ python3.13 -m venv .venv
 .venv/bin/python app.py
 ```
 
-Open <http://localhost:5001>. `/?refresh=1` bypasses the 5-minute cache.
+Open <http://localhost:5001>.
+
+The server binds to `127.0.0.1` by default. Set `WIRE_HOST=0.0.0.0` to expose
+it on the network, and `WIRE_PORT` to change the port.
+
+`/?refresh=1` bypasses the 5-minute cache, which forces one upstream request
+per source. It is disabled by default to avoid being used as an amplification
+vector; set `WIRE_ALLOW_REFRESH=1` to re-enable it (and hide the refresh link
+until then).
 
 If a source fails, the page still renders the rest and shows an
 `unavailable: …` line at the top.

@@ -1,5 +1,6 @@
 import asyncio
 import html
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -12,6 +13,9 @@ from fasthtml.common import (
 )
 
 TTL = 300
+HOST = os.environ.get("WIRE_HOST", "127.0.0.1")
+PORT = int(os.environ.get("WIRE_PORT", "5001"))
+ALLOW_REFRESH = os.environ.get("WIRE_ALLOW_REFRESH", "0") == "1"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126 Safari/537.36")
 
@@ -226,7 +230,7 @@ def nav():
 
 @rt("/")
 async def index(refresh: int = 0):
-    stories, errors = await load(force=bool(refresh))
+    stories, errors = await load(force=bool(refresh) and ALLOW_REFRESH)
     header = Tr(Td(
         Table(
             Tr(
@@ -236,7 +240,7 @@ async def index(refresh: int = 0):
                         cls="pagetop"),
                    style="line-height:12pt;height:10px"),
                 Td(Span(A("refresh", href="/?refresh=1"), cls="pagetop"),
-                   style="text-align:right;padding-right:4px"),
+                   style="text-align:right;padding-right:4px") if ALLOW_REFRESH else "",
             ),
             width="100%", cellspacing="0", cellpadding="0", border="0",
             style="padding:2px",
@@ -263,4 +267,4 @@ async def index(refresh: int = 0):
 
 
 if __name__ == "__main__":
-    serve(port=5001)
+    serve(host=HOST, port=PORT)
