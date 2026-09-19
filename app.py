@@ -20,19 +20,24 @@ RELOAD = os.environ.get("WIRE_RELOAD", "0") == "1"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126 Safari/537.36")
 
+GRAVITY = 1.8
+
 SOURCES = [
     dict(name="HN", url="https://hnrss.org/frontpage", kind="feed", max=10,
-         home="https://news.ycombinator.com/"),
+         quality_mode="points", home="https://news.ycombinator.com/"),
     dict(name="Reddit", url="https://www.reddit.com/r/worldnews+technology+news/.rss",
-         kind="feed", max=10,
+         kind="feed", max=10, quality_mode="position",
          home="https://www.reddit.com/r/worldnews+technology+news/"),
-    dict(name="SPIEGEL", url="https://www.spiegel.de/schlagzeilen/index.rss",
-         kind="feed", max=10, home="https://www.spiegel.de/"),
-    dict(name="The Verge", url="https://www.theverge.com/rss/index.xml",
-         kind="feed", max=10, home="https://www.theverge.com/"),
+    dict(name="SPIEGEL", url="https://www.spiegel.de/schlagzeilen/tops/index.rss",
+         kind="feed", max=10, quality_mode="position",
+         home="https://www.spiegel.de/"),
+    dict(name="The Verge", url="https://www.theverge.com/", kind="scrape", max=10,
+         quality_mode="position", rss="https://www.theverge.com/rss/index.xml",
+         home="https://www.theverge.com/"),
     dict(name="Reuters",
          url="https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
-         kind="sitemap", max=10, home="https://www.reuters.com/"),
+         kind="sitemap", max=10, quality_mode="none",
+         home="https://www.reuters.com/"),
 ]
 
 POINTS = re.compile(r"Points:\s*(\d+)")
@@ -41,6 +46,8 @@ URL_BLOCK = re.compile(r"<url>(.*?)</url>", re.S)
 LOC = re.compile(r"<loc>(.*?)</loc>", re.S)
 NEWS_TITLE = re.compile(r"<news:title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</news:title>", re.S)
 NEWS_DATE = re.compile(r"<news:publication_date>(.*?)</news:publication_date>", re.S)
+VERGE_ARTICLE = re.compile(
+    r"https://www\.theverge\.com/[a-z0-9-]+/\d{6,}/[a-z0-9-]+", re.I)
 
 CSS = """
 :root {
@@ -112,6 +119,7 @@ def parse_feed(body, name):
                 title=title, url=url, source=name, published=published,
                 points=int(points.group(1)) if points else None,
                 comments=int(comments.group(1)) if comments else None,
+                quality=None,
             ))
     return stories
 
@@ -127,36 +135,83 @@ def parse_sitemap(body, name):
         stories.append(dict(
             title=html.unescape(title.group(1).strip()), url=loc.group(1).strip(),
             source=name, published=parse_date(date.group(1)) if date else time.time(),
-            points=None, comments=None,
+            points=None, comments=None, quality=None,
         ))
     return stories
 
 
+def parse_homepage(body, name, rss_body):
+    by_url = {}
+    for story in parse_feed(rss_body, name):
+        by_url.setdefault(story["url"], story)
+    ordered, seen = [], set()
+    for url in VERGE_ARTICLE.findall(body):
+        url = url.rstrip("/")
+        if url in seen or url not in by_url:
+            continue
+        seen.add(url)
+        ordered.append(by_url[url])
+    return ordered
+
+
 async def fetch_one(client, src):
-    parse = parse_sitemap if src["kind"] == "sitemap" else parse_feed
     last = None
-    for attempt in range(3):
-        try:
-            r = await client.get(src["url"], headers={"User-Agent": UA},
-                                 follow_redirects=True, timeout=20)
-            if r.status_code == 429:
-                wait = int(r.headers.get("x-ratelimit-reset", 1)) + 1
-                raise httpx.HTTPStatusError(
-                    f"429 Too Many Requests (retry in {wait}s)", request=r.request, response=r)
-            r.raise_for_status()
-            return src["name"], parse(r.text, src["name"])[:src["max"]], None
-        except httpx.HTTPStatusError as e:
-            last = e
-            if e.response.status_code != 429 or attempt == 2:
-                break
-            await asyncio.sleep(int(e.response.headers.get("x-ratelimit-reset", 1)) + 1)
-        except Exception as e:
-            last = e
-            break
-    return src["name"], [], f"{type(last).__name__}: {last}"
+
+    async def get(url):
+        nonlocal last
+        for attempt in range(3):
+            try:
+                r = await client.get(url, headers={"User-Agent": UA},
+                                     follow_redirects=True, timeout=20)
+                if r.status_code == 429:
+                    wait = int(r.headers.get("x-ratelimit-reset", 1)) + 1
+                    raise httpx.HTTPStatusError(
+                        f"429 Too Many Requests (retry in {wait}s)", request=r.request, response=r)
+                r.raise_for_status()
+                return r.text
+            except httpx.HTTPStatusError as e:
+                last = e
+                if e.response.status_code != 429 or attempt == 2:
+                    raise
+                await asyncio.sleep(int(e.response.headers.get("x-ratelimit-reset", 1)) + 1)
+        raise last
+
+    try:
+        if src["kind"] == "scrape":
+            body = await get(src["url"])
+            rss_body = await get(src["rss"])
+            items = parse_homepage(body, src["name"], rss_body)
+        else:
+            parse = parse_sitemap if src["kind"] == "sitemap" else parse_feed
+            items = parse(await get(src["url"]), src["name"])
+        return src["name"], items[:src["max"]], None
+    except Exception as e:
+        return src["name"], [], f"{type(e).__name__}: {e}"
 
 
 _cache = {"at": 0.0, "wall": "", "stories": [], "errors": []}
+
+
+def assign_quality(results):
+    for src in SOURCES:
+        items = next((i for n, i, _ in results if n == src["name"]), [])
+        mode = src["quality_mode"]
+        if mode == "points":
+            top = max((s["points"] or 0) for s in items) if items else 0
+            for story in items:
+                story["quality"] = (story["points"] or 0) / top if top else 0.0
+        elif mode == "position":
+            span = max(1, len(items) - 1)
+            for pos, story in enumerate(items):
+                story["quality"] = 1 - pos / span
+        else:
+            for story in items:
+                story["quality"] = 0.5
+
+
+def hot_score(story):
+    hours = max(0.0, time.time() - story["published"]) / 3600
+    return (story["quality"] + 1) / (hours + 2) ** GRAVITY
 
 
 async def load(force=False):
@@ -165,12 +220,13 @@ async def load(force=False):
         return _cache["stories"], _cache["errors"]
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(*(fetch_one(client, s) for s in SOURCES))
+    assign_quality(results)
     stories, errors = [], []
     for name, items, err in results:
         stories += items
         if err:
             errors.append(f"{name} ({err})")
-    stories.sort(key=lambda s: s["published"], reverse=True)
+    stories.sort(key=hot_score, reverse=True)
     for rank, story in enumerate(stories, 1):
         story["rank"] = rank
     _cache.update(at=now, wall=datetime.now().strftime("%H:%M"),

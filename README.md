@@ -1,25 +1,38 @@
 # wire
 
-A minimal, read-only news reader with Hacker News' design, recoloured with
-Tailwind's sky palette. It merges the top stories from a handful of sources
-into one ranked list.
+## About
 
-No database, no profiles, no upvotes, no comments. Stories are fetched live,
-cached in memory for 5 minutes, and thrown away on restart.
+wire is a small news reader. It reads news stories. It does not change the
+stories. The design of wire comes from Hacker News. The colors of wire come
+from the Tailwind sky palette.
+
+wire collects the top stories from a group of sources. It makes one list. A
+score puts the list in order. The score uses popularity and age.
+
+wire has no database. It has no profiles. It has no votes. It has no comments.
+wire gets the stories live. It keeps the stories in memory for 5 minutes. It
+deletes the stories when it stops.
 
 ## Sources
 
-| Source | Endpoint | Notes |
-|---|---|---|
-| Hacker News | `hnrss.org/frontpage` | Includes points and comment counts |
-| Reddit | `reddit.com/r/worldnews+technology+news/.rss` | Rate-limited; retried automatically |
-| SPIEGEL | `spiegel.de/schlagzeilen/index.rss` | German |
-| The Verge | `theverge.com/rss/index.xml` | Atom |
-| Reuters | `reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml` | Title/URL/date only, no summary |
+| Source      | Endpoint                                                     | Notes                                                   |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------- |
+| Hacker News | `hnrss.org/frontpage`                                        | Ranked by points and comments                           |
+| Reddit      | `reddit.com/r/worldnews+technology+news/.rss`                | Hot order. Rate-limited. wire tries again automatically |
+| SPIEGEL     | `spiegel.de/schlagzeilen/tops/index.rss`                     | German. Editorial top list                              |
+| The Verge   | `theverge.com/` homepage + `theverge.com/rss/index.xml`      | Homepage order. Joined to the feed for title and date   |
+| Reuters     | `reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml` | Title, URL, and date only. No popularity signal         |
 
-Not included: ARTE (no feed on any path; its internal API 404s) and
-The Wider Image (redirects to a Reuters page that returns 401). YouTube
-subscriptions also need per-channel IDs or login cookies.
+Some sources have no popularity count. These sources are Reuters and any source
+that fails. These sources get a neutral score. Only their age moves them up the
+list.
+
+## Sources that are planned but not available
+
+wire does not include ARTE. ARTE has no feed on any path. Its internal API gives
+a 404. wire does not include The Wider Image. It redirects to a Reuters page.
+That page gives a 401. YouTube subscriptions would need per-channel IDs or login
+cookies.
 
 ## Run
 
@@ -32,31 +45,19 @@ python3.13 -m venv .venv
 Open <http://localhost:5001>.
 
 The server binds to `127.0.0.1` by default. Set `WIRE_HOST=0.0.0.0` to expose
-it on the network, and `WIRE_PORT` to change the port.
+the server on the network. Set `WIRE_PORT` to change the port.
 
-`/?refresh=1` bypasses the 5-minute cache, which forces one upstream request
-per source. It is disabled by default to avoid being used as an amplification
-vector; set `WIRE_ALLOW_REFRESH=1` to re-enable it (and hide the refresh link
-until then).
+`/?refresh=1` bypasses the 5-minute cache. It forces one upstream request for
+each source. wire disables this function by default. The function can amplify
+traffic. Set `WIRE_ALLOW_REFRESH=1` to enable the function. wire hides the
+refresh link until you enable the function.
 
-The dev reloader (watchfiles) is off by default for production; set
-`WIRE_RELOAD=1` while developing.
+The dev reloader (watchfiles) is off by default. Set `WIRE_RELOAD=1` while you
+develop.
 
-If a source fails, the page still renders the rest and shows an
+If a source fails, the page shows the other sources. It also shows an
 `unavailable: …` line at the top.
-
-## Design
-
-- `SOURCES` — one entry per feed, with a `kind` of `feed` (RSS/Atom) or `sitemap`.
-- `fetch_one()` — fetches and parses one source; failures are contained per source.
-- `load()` — gathers all sources, caps each at 10 items, sorts by publish date, ranks.
-- `_cache` — a dict and a monotonic timestamp. That is the entire persistence layer.
-- `@rt("/")` — renders the HN table: sky-500 header bar, sky-50 body, 85% width.
-- `CSS` — the HN stylesheet with the palette swapped, one `:root` variable per
-  sky shade: `--sky-500` bar and footer rule, `--sky-50` page, `--sky-950`
-  titles and header text, `--sky-600` muted meta, `--sky-300` vote arrow.
-  Pico is disabled in `fast_app()`; nothing else styles the page.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)
