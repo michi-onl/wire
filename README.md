@@ -53,3 +53,7 @@ If a source fails, the page still renders the rest and shows an
   sky shade: `--sky-500` bar and footer rule, `--sky-50` page, `--sky-950`
   titles and header text, `--sky-600` muted meta, `--sky-300` vote arrow.
   Pico is disabled in `fast_app()`; nothing else styles the page.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
