@@ -1,76 +1,53 @@
 # wire
 
-## About
+wire reads the front pages of some news sites. It puts the stories in one
+list. It ranks the stories by popularity and age.
 
-wire is a small news reader. It reads news stories. It does not change the
-stories. The design of wire comes from Hacker News. The colors of wire come
-from the Tailwind sky palette.
+wire keeps no database and no profile. It stores no votes and no comments.
+The list refreshes every five minutes.
 
-wire collects the top stories from a group of sources. It makes one list. A
-score puts the list in order. The score uses popularity and age.
+The design comes from Hacker News. The colors come from the Tailwind sky
+palette.
 
-wire has no database. It has no profiles. It has no votes. It has no comments.
-wire gets the stories live. It keeps the stories in memory for 5 minutes. It
-deletes the stories when it stops.
+## How to use it
+
+Open <https://wire.michi.onl>.
+
+If a source fails, the page shows the other sources and an `unavailable: …`
+line at the top.
 
 ## Sources
 
-| Source      | Endpoint                                                     | Notes                                                   |
-| ----------- | ------------------------------------------------------------ | ------------------------------------------------------- |
-| Hacker News | `hnrss.org/frontpage`                                        | Ranked by points and comments                           |
-| Reddit      | `reddit.com/r/worldnews+technology+news/.rss`                | Hot order. Rate-limited. wire tries again automatically |
-| SPIEGEL     | `spiegel.de/schlagzeilen/tops/index.rss`                     | German. Editorial top list                              |
-| The Verge   | `theverge.com/` homepage + `theverge.com/rss/index.xml`      | Homepage order. Joined to the feed for title and date   |
-| Reuters     | `reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml` | Title, URL, and date only. No popularity signal         |
+| Source      | Notes                                             |
+| ----------- | ------------------------------------------------- |
+| Hacker News | Ranked by points and comments                     |
+| Reddit      | Hot order. World news, technology, and news       |
+| SPIEGEL     | German. Editorial top list                        |
+| The Verge   | Homepage order                                    |
+| Reuters     | Title, URL, and date only. No popularity signal   |
 
-Some sources have no popularity count. These sources are Reuters and any source
-that fails. These sources get a neutral score. Only their age moves them up the
-list.
-
-## Sources that are planned but not available
-
-wire does not include ARTE. ARTE has no feed on any path. Its internal API gives
-a 404. wire does not include The Wider Image. It redirects to a Reuters page.
-That page gives a 401. YouTube subscriptions would need per-channel IDs or login
-cookies.
-
-## Run
-
-```sh
-python3.13 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python app.py
-```
-
-Open <http://localhost:5001>.
-
-The server binds to `127.0.0.1` by default. Set `WIRE_HOST=0.0.0.0` to expose
-the server on the network. Set `WIRE_PORT` to change the port.
-
-`/?refresh=1` bypasses the 5-minute cache. It forces one upstream request for
-each source. wire disables this function by default. The function can amplify
-traffic. Set `WIRE_ALLOW_REFRESH=1` to enable the function. wire hides the
-refresh link until you enable the function.
-
-The dev reloader (watchfiles) is off by default. Set `WIRE_RELOAD=1` while you
-develop.
-
-If a source fails, the page shows the other sources. It also shows an
-`unavailable: …` line at the top.
+Reuters has no popularity count, so only its age moves it up the list.
 
 ## Patreon posts (optional)
 
-A userscript shows the Patreon posts of your memberships. The posts stay on your
-device. The wire server never sees them.
+A userscript shows the Patreon posts of your memberships. The posts stay on
+your device. The wire server does not see them.
 
-Install <https://wire.michi.onl/patreon.user.js>. Sign in to patreon.com. Click
-**Sync to wire**. Open wire: a `patreon — this device` block shows the posts.
-The script needs an open patreon.com tab, and limits its own requests.
+1. Install <https://wire.michi.onl/patreon.user.js>.
+2. Sign in to patreon.com.
+3. Click **Sync to wire**.
+4. Open wire. A `patreon — this device` block shows the posts.
+
+The script needs an open patreon.com tab. The first sync asks for your account
+name, and each browser keeps its own list.
 
 ## Install as a webapp
 
-wire has a webapp manifest. You can add wire to your home screen. The icons
-live in `static/`.
+You can add wire to your home screen. The icons live in `static/`.
+
+## Run it yourself
+
+See [SELFHOST.md](SELFHOST.md).
 
 ## License
 
