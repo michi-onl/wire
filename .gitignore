@@ -4,3 +4,4 @@ __pycache__/
 .env
 .sesskey
 .DS_Store
+*.local.md

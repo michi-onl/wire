@@ -57,6 +57,13 @@
 - Do not send many requests and do not send them quickly. Read `PACE` before you
   add a request.
 
+## Deploy
+
+- wire runs on a Proxmox container. The steps and the addresses are in
+  `DEPLOY.local.md`. Git ignores that file, because the addresses are local.
+  Read it before you deploy. Never put the addresses in a file that Git
+  contains.
+
 ## Verify the userscript
 
 - `node --check static/patreon.user.js` — the syntax.
