@@ -2,8 +2,6 @@
 
 ## Ship and correctness
 
-- Add `@updateURL` and `@downloadURL` to the userscript header. Point both at
-  `/patreon.user.js`, so Tampermonkey updates the script.
 - Add a check-in test with mock answers. Mock `/api/current_user` and
   `/api/posts`. Test the caps. Send no request to patreon.com.
 
@@ -29,6 +27,5 @@
 
 ## Order
 
-1. Add the update addresses.
-2. Add the mock test.
-3. Add "load older" or the richer rows.
+1. Add the mock test.
+2. Add "load older" or the richer rows.
