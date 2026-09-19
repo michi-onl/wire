@@ -31,3 +31,37 @@
 - `static/favicon.svg` — the HN icon with a white W on a sky-500 square. The W
   is the Verdana Regular glyph, kept as a path, not text. The PNG files come
   from this SVG.
+- `static/patreon.user.js` — a userscript. It is optional. The wire server does
+  not run it and does not store its data. It runs on patreon.com and on wire.
+  On patreon.com it reads the posts of the memberships with the session of the
+  page. The browser attaches the session. The script reads no password, cookie,
+  or token. It keeps the posts in the storage of the userscript, so only that
+  device shows them. On the wire page it adds a `patreon — this device` block.
+  `PACE` holds the request limits: a gap of 900 ms and a random quantity, and a
+  budget of 20 requests in 5 minutes. A run makes 9 requests at most. The script
+  ships with no account name. The first sync asks for the account and stores it
+  in the storage of the userscript, so each browser has its own list. The
+  account list is advisory. It is not a security boundary, and the wire server
+  has none. The script is a static file, thus `static_path="static"` serves it
+  at `/patreon.user.js` and `app.py` stays unchanged.
+
+## The Patreon account
+
+- Put no account data in the repository. This includes the account name, the
+  vanity, the account id, and the campaign ids. Keep them out of the source
+  files, the documents, the commit messages, and the test output.
+- The account name is per browser, and not in `app.py`. Each browser stores its
+  own list in the userscript storage. Do not add a default name to the script.
+- Make no request to patreon.com in a test. Mock the answers of `/api/posts` and
+  `/api/current_user`. Run such a test in a separate browser profile.
+- Do not send many requests and do not send them quickly. Read `PACE` before you
+  add a request.
+
+## Verify the userscript
+
+- `node --check static/patreon.user.js` — the syntax.
+- `curl -sS http://127.0.0.1:5001/patreon.user.js` — the route. FastHTML serves
+  the file, and `app.py` needs no route for it.
+- A live test needs Firefox with Tampermonkey. Ungoogled Chromium has no Web
+  Store. Install the script from `http://127.0.0.1:5001/patreon.user.js`. Keep
+  the browser profile outside the repository.

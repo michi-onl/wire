@@ -58,6 +58,15 @@ develop.
 If a source fails, the page shows the other sources. It also shows an
 `unavailable: …` line at the top.
 
+## Patreon posts (optional)
+
+A userscript shows the Patreon posts of your memberships. The posts stay on your
+device. The wire server never sees them.
+
+Install <https://wire.michi.onl/patreon.user.js>. Sign in to patreon.com. Click
+**Sync to wire**. Open wire: a `patreon — this device` block shows the posts.
+The script needs an open patreon.com tab, and limits its own requests.
+
 ## Install as a webapp
 
 wire has a webapp manifest. You can add wire to your home screen. The icons
