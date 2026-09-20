@@ -34,6 +34,14 @@ main signal.
   alone, because a news wire republishes an item and the clock restarts.
 - **Topic.** World news, technology, science, and German news come first.
   Culture and celebrity stay below the first rows. Sport does not appear.
+- **Party politics.** An election, a party, a coalition, or a campaign does
+  not appear. An act of government stays: a court ruling, an export rule, a
+  privacy law, or a meeting between two heads of state. wire reads the
+  headline, the section, and the names of 25 politicians. A name alone does
+  not remove a story, because the same person signs the law that is news. A
+  name with a campaign word does. One name is an exception: a story that
+  names Donald Trump never appears, whatever it tells. A political story
+  under a neutral headline can still reach the page.
 - **A mixed page.** After wire picks a row, the next row from the same source
   or the same topic costs more. One source cannot take the whole page.
 

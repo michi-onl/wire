@@ -198,6 +198,120 @@ class Select(unittest.TestCase):
         self.assertEqual(len(app.select(self.build(rows), 99)), len(self.FILLER))
 
 
+class Politics(unittest.TestCase):
+    """Party politics leaves the list. An act of government stays, because a
+    court ruling and an export rule are why a reader opens wire."""
+
+    def setUp(self):
+        app._seen.clear()
+        app._boot = True
+
+    def pol(self, title, source="Reddit",
+            url="https://www.reddit.com/r/worldnews/a/"):
+        return app.political(app.cluster([item(title, source, url)])[0])
+
+    def test_one_decisive_word_drops_the_row(self):
+        self.assertGreaterEqual(
+            self.pol("Voters reject the plan in a referendum"), app.POL_DROP)
+
+    def test_a_german_compound_drops_the_row(self):
+        # Both words come from a live batch. A list of whole words missed them.
+        self.assertGreaterEqual(
+            self.pol("Kremlpartei fuehrt bei der Parlamentswahl", "SPIEGEL",
+                     "https://www.spiegel.de/ausland/r/"), app.POL_DROP)
+
+    def test_a_lookalike_german_word_scores_nothing(self):
+        # "Auswahl" holds the letters of "Wahl" but means a selection, and
+        # "wahlweise" means optionally. Neither is a vote.
+        self.assertEqual(
+            self.pol("Auswahl an neuen Modellen wahlweise in Blau", "SPIEGEL",
+                     "https://www.spiegel.de/wirtschaft/s/"), 0.0)
+
+    def test_government_news_is_not_party_politics(self):
+        # One weak word alone. wire keeps this row: it is tech policy. The
+        # word still scores, so the weak tier stays measurable.
+        pol = self.pol("Lawmakers press a chip maker over export rules")
+        self.assertTrue(0.0 < pol < app.POL_DROP, pol)
+
+    def test_a_politician_alone_does_not_drop_the_row(self):
+        # An act of government. The name costs the row a little and no more.
+        pol = self.pol("Merz government prepares sanctions against the court",
+                       "Reuters", "https://www.reuters.com/legal/icc-1/")
+        self.assertTrue(0.0 < pol < app.POL_DROP, pol)
+
+    def test_a_politician_and_a_campaign_word_drop_the_row(self):
+        self.assertGreaterEqual(
+            self.pol("Newsom leads Vance in the primaries"), app.POL_DROP)
+
+    def test_a_name_on_the_always_list_drops_every_row(self):
+        # The reader asked for this one. It holds even when the story is an
+        # act of government, which any other name would leave on the page.
+        for title, url in (
+                ("Trump administration prepares sanctions against the court",
+                 "https://www.reuters.com/legal/icc-1/"),
+                ("Trump now says he wants to form an AI Force",
+                 "https://www.theverge.com/news/1/ai-force/"),
+                ("Trumpism after the rally", "https://www.reuters.com/world/t/")):
+            self.assertEqual(self.pol(title, "Reuters", url), 1.0, title)
+
+    def test_the_always_list_reads_the_address_too(self):
+        self.assertEqual(
+            self.pol("White House orders a review of chip export rules",
+                     "Reuters", "https://www.reuters.com/world/us/trump-chips-1/"),
+            1.0)
+
+    def test_the_always_list_is_a_name_and_not_a_noun(self):
+        # A trump card is a card, and "trumps" is a verb.
+        for title in ("A trump card for the defence in the mining appeal",
+                      "Battery life trumps raw speed in the new handset"):
+            self.assertEqual(self.pol(title, "The Verge",
+                                      "https://www.theverge.com/tech/1/x/"),
+                             0.0, title)
+
+    def test_both_spellings_of_a_name_score(self):
+        # SPIEGEL writes Selenskyj and Netanjahu. Reuters writes Zelenskiy and
+        # Netanyahu. A row must not depend on which source won the headline.
+        for title in ("Selenskyj und Netanjahu treffen sich",
+                      "Zelenskiy and Netanyahu hold a meeting"):
+            self.assertEqual(len(app.POL_NAMES.findall(title)), 2, title)
+
+    def test_an_umlaut_name_scores_in_both_spellings(self):
+        for title in ("Söder fordert mehr Geld", "Soeder fordert mehr Geld"):
+            self.assertTrue(app.POL_NAMES.search(title), title)
+
+    def test_a_surname_that_is_a_common_word_stays_harmless(self):
+        # "Tusk" is a name and a tooth. The plural is only a tooth.
+        self.assertEqual(
+            self.pol("Poachers seized 400 elephant tusks in transit"), 0.0)
+
+    def test_a_court_ruling_stays(self):
+        self.assertLess(self.pol("Court voids a privacy ruling on ad tracking",
+                                 "Reuters",
+                                 "https://www.reuters.com/legal/ads-1/"), 0.5)
+
+    def test_the_section_alone_does_not_drop_the_row(self):
+        # SPIEGEL files a pension debate under the same path as a coalition
+        # crisis. The section damps the row. It does not remove it.
+        pol = self.pol("Rente soll fruher steigen als geplant", "SPIEGEL",
+                       "https://www.spiegel.de/politik/deutschland/r/")
+        self.assertTrue(0.0 < pol < app.POL_DROP, pol)
+
+    def test_a_political_row_does_not_reach_the_page(self):
+        hot = item("Governing bloc loses the runoff", "Reuters",
+                   "https://www.reuters.com/world/europe/vote-1/", hours=0.1)
+        rows = [hot] + [item(t, "Reuters", f"https://www.reuters.com/world/n-{i}/",
+                             hours=30) for i, t in enumerate(Select.FILLER)]
+        clusters = app.cluster(rows)
+        for c in clusters:
+            c["score"] = app.score(c)
+        best = max(clusters, key=lambda c: c["score"])
+        picked = app.select(clusters, 20)
+        self.assertNotIn(hot["title"], [c["title"] for c in picked])
+        # The row was the best of the batch, so the drop, and not the age
+        # decay, is what removed it.
+        self.assertEqual(best["title"], hot["title"])
+
+
 class Observe(unittest.TestCase):
     def setUp(self):
         app._seen.clear()

@@ -18,6 +18,48 @@
   meet on one story, and it makes the row name the real publisher.
 - `keep()` — drops an item before it reaches the list: the `DROP` pattern of
   its source, a live blog, or an age above `MAX_AGE`.
+- `political()` — how sure wire is that a row is party politics, from 0 to 1.
+  The section gives 0.4, one decisive word gives 0.6, and each word that also
+  fits plain government news gives 0.25. `select()` drops a row at `POL_DROP`
+  or above. `score()` charges `W_POL` for a row below it. The scope is party
+  politics alone: an election, a party, a coalition, a campaign. An act of
+  government stays. A reader opens wire for the court ruling and the export
+  rule, so `lawmakers` and `minister` are weak words and cannot drop a row
+  alone.
+- The drop sits in `select()` and not in `keep()`. `keep()` reads one item,
+  and all five sources carry politics, thus a drop there removes one copy and
+  `cluster()` then builds the same row again from the other four. Sport works
+  in `keep()` because `DROP` holds every source that carries sport.
+- German builds a compound for each political word, thus no list of whole
+  words holds them. A live batch gave `Parlamentswahl` and `Kremlpartei`, and
+  both scored zero against such a list. `POL_STRONG` reads the stem of `wahl`
+  and of `partei`, and names the exceptions: `Auswahl` is a selection and
+  `wahlweise` means optionally.
+- `POL_ALWAYS` — the names that the reader never wants to read. A match
+  returns 1.0 at the top of `political()` and skips every other rule, thus the
+  row always leaves the page. This is a reader rule and not a measurement: it
+  removes an act of government too, which `POL_NAMES` is built to keep. Hold
+  the two lists apart. A name in `POL_ALWAYS` must not also sit in
+  `POL_NAMES`, because a tier cannot apply to it.
+- A name in `POL_ALWAYS` needs a guard that a weak name does not. A weak name
+  costs 0.25 and a wrong match is cheap. Here a wrong match removes a story,
+  so the rule names the noun it must not read: a trump card is a card, and
+  "battery life trumps raw speed" is a verb.
+- `POL_NAMES` — the 24 politicians that the sources name most. A name is a
+  weak word, not a decisive one. A name alone must never drop a row, because
+  the same politician signs the export rule that the reader wants. A name and
+  one decisive word reach `POL_DROP` together. This also makes a surname that
+  is a common word cheap, such as Tusk.
+- `POL_NAMES` is the one part of `app.py` with a shelf life. Review it after an
+  election. Each source spells a transliterated name its own way: SPIEGEL
+  writes Selenskyj and Netanjahu, Reuters writes Zelenskiy and Netanyahu, and a
+  wire writes Soeder for Söder. Give each spelling its own entry. This is the
+  alias list that TODO.md asks for, but it serves the politics filter and not
+  `cluster()`.
+- Measure a live batch before you add a word to `POL_STRONG`. The filter takes
+  rows out of the pool after `cluster()`, so a wider rule shrinks the pool
+  below `SHOWN` and nothing warns you. The batch of 2026-09-21 dropped 6 rows
+  of 54 and left 48 for a page of 30.
 - `cluster()` — joins the items that tell one story, on a shared address or on
   shared rare title words. `idf()` adds 1 to every weight, because in a small
   batch a shared word appears in every document and a pure count then calls it

@@ -17,6 +17,21 @@ constant.
   agreement separates them. A section-aware prior could help.
 - The topic rules read the address. A story in r/technology about tax policy
   counts as `tech`. The rules cannot see the text.
+- The politics filter reads the headline and one section, `spiegel.de/politik/`.
+  Reuters, Reddit, and HN give no politics section, so the headline is the only
+  signal there. A political story under a neutral headline stays on the page.
+- `POL_ALWAYS` costs the most rows of any rule. One name took 7 rows of a
+  batch of 55, and 42 rows stayed for a page of 30. A second name there can
+  put the pool below `SHOWN`. Count a live batch before you add one, and raise
+  `max` and `window` in `SOURCES` if the margin gets thin.
+- `POL_NAMES` holds 24 names and ages with every election. A new head of
+  government is the gap that hurts: a name that left office costs nothing, and
+  a name that wire does not know scores zero. Review the list after an
+  election, and count the names of a live batch to find who is missing.
+- Party politics is where agreement is strongest, because all five sources
+  carry one election. The filter thus removes rows with a high `W_CORR` term,
+  and single-source rows take their place. Watch the source mix of the head of
+  the page after a change to `POL_DROP`.
 - `observe()` needs two refreshes before it can mark a row `rising`. After a
   restart the marks stay off for five minutes.
 - The Verge scrape returns fewer items than its cap when the homepage layout

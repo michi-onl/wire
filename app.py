@@ -38,12 +38,14 @@ W_CORR = 1.9         # independent sources on the same story
 W_VEL = 1.2          # gain since the last refresh
 W_TOPIC = 1.0        # topic fit
 W_PUB = 1.0          # publisher
+W_POL = 1.8          # cost for party politics, at full confidence
 
 SOURCE_SPREAD = 0.45  # cost for each earlier row from the same source
 TOPIC_SPREAD = 0.28   # cost for each earlier row on the same topic
 MAX_SPREAD = 0.9      # the largest cost a mixed page may charge one row
 SOFT_FLOOR = 8        # soft news starts below this row, whatever it scores
 SOFT_TOPICS = {"soft", "celebrity"}
+POL_DROP = 0.6        # a row at this politics confidence or above leaves the list
 
 SOURCES = [
     dict(name="HN", url="https://hnrss.org/frontpage", kind="feed",
@@ -113,6 +115,58 @@ TECH_WORDS = re.compile(
 SOFT_SLUG = re.compile(
     r"/[^/]*(podcast|music|movie|film|tv-show|streaming-guide|trailer|recap"
     r"|best-deals|gift-guide|review-roundup|horoscope)[^/]*/?$", re.I)
+
+# Party politics: an election, a parliament, a minister, a campaign. An act of
+# government is not party politics. A court ruling, a chip export rule, and a
+# privacy law stay on the page, because they are why a reader opens wire.
+# A section cannot decide alone. SPIEGEL files a coalition crisis and a pension
+# debate under one politik/ path, and Reddit files both under r/worldnews. So
+# the score reads the section and the title, and returns a confidence.
+POL_SECTION = re.compile(r"spiegel\.de/politik/", re.I)
+# One of these words settles the row on its own. German builds a compound for
+# each of them, thus no list of whole words can hold them: one live batch gave
+# Parlamentswahl and Kremlpartei, and both scored zero against such a list. The
+# two German rules read the stem and name the exceptions. "Auswahl" is a
+# selection and "wahlweise" means optionally. Neither is a vote.
+POL_STRONG = re.compile(
+    r"\b(elections?|electoral|re-?elections?|ballots?|referendums?|primaries"
+    r"|caucus|midterms?|runoffs?|impeach\w*|gerrymander\w*|no-confidence"
+    r"|(?!aus|vor|an)\w*wahl(?!weise)\w*|\w*partei\w*|koalition\w*"
+    r"|misstrauensvotum)\b", re.I)
+# These words also fit plain government news, so one of them is not enough.
+# "Lawmakers press a chip maker" must stay. "Lawmakers before the runoff" goes.
+POL_WEAK = re.compile(
+    r"\b(candidates?|incumbents?|constituency|senators?|governor|lawmakers?"
+    r"|parliament\w*|coalition|cabinet|reshuffle|minister\w*|chancellor"
+    r"|presidential|bundestag|bundesrat|landtag|kanzler\w*"
+    r"|regierung\w*|abgeordnete\w*|fraktion\w*)\b", re.I)
+
+# A name that the reader never wants to read. A match sets the confidence to 1,
+# thus the row always leaves the list, whatever the story tells. This is a
+# reader rule and not a measurement. It removes an act of government too, and
+# that is the point of it. Keep it apart from POL_NAMES: a name here obeys no
+# tier and no threshold, so the two lists must not hold the same name.
+# The rule reads the headline and the address. It must not read the noun: a
+# trump card is a card, and "security trumps speed" is a verb.
+POL_ALWAYS = re.compile(r"\btrump(?:ism|ists?)?\b(?!\s+card)", re.I)
+
+# The 24 politicians that the sources of wire name most. A name is a weak word
+# on purpose. "Trump sanctions the court" is an act of government and stays.
+# "Trump before the midterms" is a campaign and goes, because the name and the
+# decisive word reach POL_DROP together. A name is also the one part of this
+# file with a shelf life: review the list after an election. A surname that is
+# also a common word, such as Tusk, costs little, because one weak word alone
+# never drops a row.
+# Each source spells a transliterated name its own way. SPIEGEL writes
+# Selenskyj and Netanjahu, Reuters writes Zelenskiy and Netanyahu, so each
+# spelling needs its own entry. An umlaut has the same problem: a German page
+# writes Söder and a wire writes Soeder.
+POL_NAMES = re.compile(
+    r"\b(merz|weidel|klingbeil|s(?:ö|oe|o)der|pistorius|scholz"
+    r"|vance|rubio|hegseth|newsom"
+    r"|macron|starmer|meloni|leyen|orb(?:a|á)n|tusk|s(?:a|á)nchez"
+    r"|putin|selenskyj|zelensk(?:y|iy|yy)|netan(?:j|y)ahu|modi|jinping"
+    r"|erdo(?:g|ğ)an|milei)\b", re.I)
 
 PUB_GOOD = re.compile(
     r"(^|\.)(reuters\.com|apnews\.com|bbc\.co\.uk|bbc\.com|ft\.com|economist\.com"
@@ -522,6 +576,24 @@ def topic(c):
     return "other", 0.0
 
 
+def political(c):
+    """How sure wire is that the row is party politics, from 0 to 1. The
+    section gives 0.4, one decisive word gives 0.6, and each weak word gives
+    0.25. A weak word is a word that also fits plain government news, or the
+    name of a politician. A row at POL_DROP or above leaves the list. A row
+    below it stays and pays W_POL for the part it scores. A name in
+    POL_ALWAYS skips the count and takes the row off the page."""
+    if POL_ALWAYS.search(c["title"] + " " + c["url"]):
+        return 1.0
+    pol = 0.4 if POL_SECTION.search(c["origin"] + " " + c["url"]) else 0.0
+    if POL_STRONG.search(c["title"]):
+        pol += 0.6
+    weak = {w.lower() for w in POL_WEAK.findall(c["title"])}
+    weak |= {n.lower() for n in POL_NAMES.findall(c["title"])}
+    pol += 0.25 * len(weak)
+    return min(1.0, pol)
+
+
 def observe(c):
     """Compare the row with the last refresh. Returns the gain and two marks."""
     now = time.time()
@@ -556,24 +628,31 @@ def score(c):
     explain itself: standing, agreement, gain, topic, publisher, minus age."""
     vel, fresh, rising = observe(c)
     name, tw = topic(c)
+    pol = political(c)
     pub = 0.45 if PUB_GOOD.search(c["publisher"]) else \
         -0.8 if PUB_POOR.search(c["publisher"]) else 0.0
     if CLICKBAIT.search(c["title"]):
         pub -= 0.8
     hours = max(0.0, time.time() - c["published"]) / 3600
-    c.update(topic=name, new=fresh, rising=rising, vel=vel)
+    c.update(topic=name, new=fresh, rising=rising, vel=vel, pol=pol)
     return (W_PROM * c["prom"]
             + W_CORR * math.log2(1 + len(c["sources"]))
             + W_VEL * vel
             + W_TOPIC * tw
             + W_PUB * pub
+            - W_POL * pol
             - GRAVITY * math.log2(hours + AGE_FLOOR))
 
 
 def select(clusters, n):
     """Take the best row, then make the next row of the same source or topic
-    cost more. The page stays mixed instead of one source in a block."""
-    pool = sorted(clusters, key=lambda c: c["score"], reverse=True)
+    cost more. The page stays mixed instead of one source in a block. A row
+    that reads as party politics does not reach the page at all."""
+    # The drop sits here and not in keep(). keep() reads one item, and all five
+    # sources carry politics, thus a drop there removes one copy and cluster()
+    # then builds the same row again from the other four.
+    pool = sorted((c for c in clusters if c["pol"] < POL_DROP),
+                  key=lambda c: c["score"], reverse=True)
     picked, used_src, used_top = [], {}, {}
     while pool and len(picked) < n:
         # Culture and celebrity stay off the head of the page. They keep their
