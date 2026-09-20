@@ -1,0 +1,272 @@
+"""Tests for the ranking. No test makes a network request.
+
+Run it with:  .venv/bin/python -m unittest discover -s test -p 'test_*.py'
+"""
+import os
+import sys
+import time
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import app  # noqa: E402
+
+
+def item(title, source, url, **kw):
+    kw.setdefault("pos", 0)
+    kw.setdefault("n", 10)
+    hours = kw.pop("hours", 1.0)
+    s = app.story(title, url, source, time.time() - hours * 3600, **kw)
+    s["origin"] = kw.get("origin", url)
+    return s
+
+
+class Canonical(unittest.TestCase):
+    def test_strips_tracking_and_host_noise(self):
+        a = app.canonical("https://www.example.com/a/b/?utm_source=x&id=7")
+        b = app.canonical("http://example.com/a/b?id=7")
+        self.assertEqual(a, b)
+
+    def test_strips_amp_and_mobile(self):
+        self.assertEqual(app.canonical("https://m.example.com/a/amp"),
+                         app.canonical("https://example.com/a"))
+
+    def test_keeps_a_meaningful_query(self):
+        self.assertIn("id=7", app.canonical("https://example.com/p?id=7"))
+
+
+class Keep(unittest.TestCase):
+    def test_drops_reuters_sports(self):
+        s = item("Packers sink Jets in OT", "Reuters",
+                 "https://www.reuters.com/sports/nfl/packers-sink-jets/")
+        self.assertFalse(app.keep(s))
+
+    def test_drops_a_translated_wire(self):
+        s = item("Allemagne-L'AfD en tete", "Reuters",
+                 "https://www.reuters.com/fr/allemagne-afd/")
+        self.assertFalse(app.keep(s))
+
+    def test_drops_spiegel_sport(self):
+        s = item("Real Madrid verliert", "SPIEGEL",
+                 "https://www.spiegel.de/sport/fussball/real-madrid-a-1/")
+        self.assertFalse(app.keep(s))
+
+    def test_drops_an_evergreen_item(self):
+        s = item("Rente: So kommen Sie auf 2000 Euro", "SPIEGEL",
+                 "https://www.spiegel.de/wirtschaft/rente-a-1/", hours=235 * 24)
+        self.assertFalse(app.keep(s))
+
+    def test_drops_a_live_blog(self):
+        s = item("Wahl 2026 im Liveblog", "SPIEGEL",
+                 "https://www.spiegel.de/politik/deutschland/wahl-a-1/")
+        self.assertFalse(app.keep(s))
+
+    def test_keeps_real_news(self):
+        s = item("Far-left party wins Berlin election", "Reuters",
+                 "https://www.reuters.com/world/europe/berlin-election/")
+        self.assertTrue(app.keep(s))
+
+
+class Cluster(unittest.TestCase):
+    def test_one_article_on_two_sources_becomes_one_row(self):
+        url = "https://www.reuters.com/business/altman-un/"
+        rows = app.cluster([item("Altman to brief UN", "Reuters", url),
+                            item("Altman to Brief UN", "HN", url, points=99)])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(set(rows[0]["sources"]), {"Reuters", "HN"})
+
+    def test_three_shared_rare_words_merge(self):
+        rows = app.cluster([
+            item("AfD leads as Merz rues disaster in state election", "Reuters",
+                 "https://www.reuters.com/world/europe/afd-1/"),
+            item("Germany far-right AfD leads race in state, exit poll", "Reuters",
+                 "https://www.reuters.com/world/europe/afd-2/")])
+        self.assertEqual(len(rows), 1)
+
+    def test_two_shared_words_in_one_news_cycle_merge(self):
+        rows = app.cluster([
+            item("Selenskyj kuendigt Treffen mit Trump in New York an", "SPIEGEL",
+                 "https://www.spiegel.de/ausland/selenskyj-a-1/", hours=1),
+            item("Zelenskiy says he and Trump agree to meet in New York", "Reuters",
+                 "https://www.reuters.com/world/zelenskiy-1/", hours=2)])
+        self.assertEqual(len(rows), 1, "a cross-language pair should join")
+
+    def test_one_shared_name_does_not_merge_two_reports(self):
+        rows = app.cluster([
+            item("Selenskyj kuendigt Treffen mit Donald Trump in New York an",
+                 "SPIEGEL", "https://www.spiegel.de/ausland/selenskyj-a-2/", hours=1),
+            item("Donald Trump will aus seinem Triumphbogen einen Militaerkomplex",
+                 "SPIEGEL", "https://www.spiegel.de/ausland/trump-a-3/", hours=8)])
+        self.assertEqual(len(rows), 2, "'Donald Trump' alone is not one story")
+
+    def test_two_elections_stay_apart(self):
+        rows = app.cluster([
+            item("Far-left party wins Berlin election", "Reuters",
+                 "https://www.reuters.com/world/europe/berlin-1/"),
+            item("Russia ruling party on track to win wartime election", "Reuters",
+                 "https://www.reuters.com/world/europe/russia-1/")])
+        self.assertEqual(len(rows), 2)
+
+
+class Score(unittest.TestCase):
+    def setUp(self):
+        app._seen.clear()
+        app._boot = True
+
+    def test_agreement_beats_a_lone_report(self):
+        url = "https://www.reuters.com/world/quake/"
+        both = app.cluster([item("Quake hits the coast", "Reuters", url),
+                            item("Quake hits the coast", "HN", url)])[0]
+        lone = app.cluster([item("Minor firm repays investors", "Reuters",
+                                 "https://www.reuters.com/world/firm/")])[0]
+        self.assertGreater(app.score(both), app.score(lone))
+
+    def test_a_fresh_trivial_wire_loses_to_an_older_agreed_story(self):
+        url = "https://www.reuters.com/world/summit/"
+        agreed = app.cluster([item("Leaders agree a summit date", "Reuters", url,
+                                   hours=6),
+                              item("Leaders agree a summit date", "SPIEGEL",
+                                   url, hours=6)])[0]
+        fresh = app.cluster([item("Small fund says it will repay holders",
+                                  "Reuters",
+                                  "https://www.reuters.com/world/fund/",
+                                  hours=0.05)])[0]
+        self.assertGreater(app.score(agreed), app.score(fresh))
+
+    def test_prominence_stays_in_range(self):
+        for s in (item("t", "HN", "https://e.com/1", points=100000),
+                  item("t", "HN", "https://e.com/2", points=0),
+                  item("t", "SPIEGEL", "https://e.com/3", pos=9, n=10),
+                  item("t", "Reuters", "https://e.com/4")):
+            self.assertTrue(0.0 <= app.prominence(s) <= 1.0)
+
+    def test_hn_without_a_section_counts_as_tech(self):
+        c = app.cluster([item("A curious compiler story", "HN",
+                              "https://blog.example.com/x", points=50)])[0]
+        self.assertEqual(app.topic(c)[0], "tech")
+
+    def test_a_podcast_slug_counts_as_soft(self):
+        c = app.cluster([item("No Dogs in Space is back", "The Verge",
+                              "https://www.theverge.com/report/9/no-dogs-music/")])[0]
+        self.assertEqual(app.topic(c)[0], "soft")
+
+
+class Select(unittest.TestCase):
+    def setUp(self):
+        app._seen.clear()
+        app._boot = True
+
+    def build(self, rows):
+        out = app.cluster(rows)
+        for c in out:
+            c["score"] = app.score(c)
+        return out
+
+    # Each filler title uses different words. Similar titles would join into
+    # one row and the test would then measure nothing.
+    FILLER = ["Harbour tariff talks stall again", "Glacier survey finds thin ice",
+              "Bond yields slip before auction", "Census counts fewer households",
+              "Rail operator delays new timetable", "Court rejects mining appeal",
+              "Wheat exports reach a record", "Vaccine trial enters last phase",
+              "Currency board keeps rate steady", "Fishery quota cut agreed",
+              "Airport expansion loses funding", "Telecom merger clears review"]
+
+    def test_soft_news_never_leads_the_page(self):
+        rows = [item("No Dogs in Space is back", "The Verge",
+                     "https://www.theverge.com/report/9/no-dogs-music/", hours=0.1)]
+        rows += [item(t, "Reuters", f"https://www.reuters.com/world/n-{i}/",
+                      hours=30) for i, t in enumerate(self.FILLER)]
+        picked = app.select(self.build(rows), 20)
+        at = [i for i, c in enumerate(picked) if c["topic"] in app.SOFT_TOPICS]
+        self.assertTrue(at and at[0] >= app.SOFT_FLOOR,
+                        f"soft row landed at {at}")
+
+    def test_one_source_does_not_own_the_head_of_the_page(self):
+        rows = [item(t, "Reuters", f"https://www.reuters.com/world/w-{i}/",
+                     hours=0.2) for i, t in enumerate(self.FILLER)]
+        rows += [item(t.upper() + " feature", "SPIEGEL",
+                      f"https://www.spiegel.de/ausland/f-{i}/", pos=i, n=6,
+                      hours=3) for i, t in enumerate(self.FILLER[:6])]
+        picked = app.select(self.build(rows), 10)
+        self.assertLess(sum(c["source"] == "Reuters" for c in picked), 10,
+                        "one source took the whole page")
+
+    def test_it_returns_what_it_is_asked_for(self):
+        rows = [item(t, "Reuters", f"https://www.reuters.com/world/{i}/")
+                for i, t in enumerate(self.FILLER)]
+        self.assertEqual(len(app.select(self.build(rows), 5)), 5)
+        self.assertEqual(len(app.select(self.build(rows), 99)), len(self.FILLER))
+
+
+class Observe(unittest.TestCase):
+    def setUp(self):
+        app._seen.clear()
+        app._boot = True
+
+    def test_the_first_load_marks_nothing_new(self):
+        c = app.cluster([item("Alpha", "HN", "https://e.com/a", points=40)])[0]
+        app.score(c)
+        self.assertFalse(c["new"])
+
+    def test_a_gain_marks_a_row_rising(self):
+        url = "https://e.com/b"
+        first = app.cluster([item("Beta bank talks", "HN", url, points=40)])[0]
+        app.score(first)
+        app._boot = False
+        app._seen[first["key"]]["at"] -= 1800
+        again = app.cluster([item("Beta bank talks", "HN", url, points=340)])[0]
+        app.score(again)
+        self.assertTrue(again["rising"])
+
+    def test_a_level_count_is_not_rising(self):
+        url = "https://e.com/c"
+        first = app.cluster([item("Gamma", "HN", url, points=40)])[0]
+        app.score(first)
+        app._boot = False
+        app._seen[first["key"]]["at"] -= 1800
+        again = app.cluster([item("Gamma", "HN", url, points=41)])[0]
+        app.score(again)
+        self.assertFalse(again["rising"])
+
+    def test_the_key_holds_when_the_best_item_changes(self):
+        def pair(points):
+            return [item("Quake hits the coast", "Reuters", "https://a.ex/q"),
+                    item("Quake hits the coast", "HN", "https://b.ex/q",
+                         points=points)]
+        low = app.cluster(pair(5))[0]
+        high = app.cluster(pair(900))[0]
+        self.assertNotEqual(low["source"], high["source"], "the best should flip")
+        self.assertEqual(low["key"], high["key"],
+                         "a flip must not reset the history of the row")
+
+    def test_prune_drops_a_stale_entry(self):
+        app._seen["https://old/x"] = dict(first=0, at=time.time() - 90000, signal=1)
+        app.prune()
+        self.assertNotIn("https://old/x", app._seen)
+
+    def test_prune_caps_the_size(self):
+        now = time.time()
+        for i in range(5200):
+            app._seen[f"https://e/{i}"] = dict(first=now, at=now, signal=1)
+        app.prune()
+        self.assertLessEqual(len(app._seen), 5000)
+
+
+class Parse(unittest.TestCase):
+    def test_reddit_row_points_at_the_article(self):
+        body = """<?xml version="1.0"?>
+        <feed xmlns="http://www.w3.org/2005/Atom"><entry>
+          <title>Trump on Iran</title>
+          <link href="https://www.reddit.com/r/worldnews/comments/1a/trump_on_iran/"/>
+          <updated>2026-09-20T10:00:00+00:00</updated>
+          <content type="html">&lt;span&gt;&lt;a href="https://thehill.com/news/6100347-trump/"&gt;[link]&lt;/a&gt;&lt;/span&gt;</content>
+        </entry></feed>"""
+        rows = app.parse_feed(body, "Reddit")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["publisher"], "thehill.com")
+        self.assertIn("reddit.com", rows[0]["discuss"])
+        self.assertIn("reddit.com", rows[0]["origin"])
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

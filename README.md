@@ -1,7 +1,7 @@
 # wire
 
 wire reads the front pages of some news sites. It puts the stories in one
-list. It ranks the stories by popularity and age.
+list. It puts the story that most sources carry at the top.
 
 wire keeps no database and no profile. It stores no votes and no comments.
 The list refreshes every five minutes.
@@ -16,17 +16,44 @@ Open <https://wire.michi.onl>.
 If a source fails, the page shows the other sources and an `unavailable: …`
 line at the top.
 
+## How wire picks the order
+
+wire reads five front pages, so it knows one thing that no single site knows:
+which story several independent editors chose at the same time. That is the
+main signal.
+
+- **Agreement.** wire joins the items that tell one story, then counts the
+  sources. A row with `2 sources` beats a lone report. One story fills one
+  row, not three.
+- **Standing.** wire reads the position of an item on its own front page, and
+  the points on Hacker News.
+- **Gain.** wire compares each story with the last refresh. A story that wins
+  points fast gets a `rising` mark. A story that just arrived gets a `new`
+  mark.
+- **Age.** An old story goes down the list. A fresh story does not win on age
+  alone, because a news wire republishes an item and the clock restarts.
+- **Topic.** World news, technology, science, and German news come first.
+  Culture and celebrity stay below the first rows. Sport does not appear.
+- **A mixed page.** After wire picks a row, the next row from the same source
+  or the same topic costs more. One source cannot take the whole page.
+
+Each row names the site that published the story, not the site that linked
+it. A Reddit post about a Financial Times article shows `ft.com`. The line
+below the title links to every source that carried the story, so you can read
+a second account or open the Hacker News comments.
+
 ## Sources
 
-| Source      | Notes                                             |
-| ----------- | ------------------------------------------------- |
-| Hacker News | Ranked by points and comments                     |
-| Reddit      | Hot order. World news, technology, and news       |
-| SPIEGEL     | German. Editorial top list                        |
-| The Verge   | Homepage order                                    |
-| Reuters     | Title, URL, and date only. No popularity signal   |
+| Source      | Notes                                                    |
+| ----------- | -------------------------------------------------------- |
+| Hacker News | Points and comments. Links to the article                |
+| Reddit      | Hot order. World news, technology, and news              |
+| SPIEGEL     | German. Editorial top list                               |
+| The Verge   | Homepage order                                           |
+| Reuters     | A wire in publication order. No editor ranks it          |
 
-Reuters has no popularity count, so only its age moves it up the list.
+Reuters publishes in time order, so no item there starts at the top. A Reuters
+story reaches the top when another source carries it too.
 
 ## Patreon posts (optional)
 
