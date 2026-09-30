@@ -87,6 +87,18 @@
   make no network request. Add a test when you change a rule. Give each test
   headline different words: similar titles join into one row, and the test
   then measures nothing.
+- `build()` — writes the page as static files for a host that runs no Python.
+  It renders `/` and `/manifest.webmanifest` in the process with
+  `TestClient`, so the page is the page of the server. Do not build a second
+  renderer. It copies `static/` and keeps `_seen` in `WIRE_SEEN` between runs.
+  It exits with an error and writes nothing when no source answers, so the
+  host keeps the last page. `.github/workflows/build.yml` runs it every hour
+  and deploys `dist/` to Cloudflare Pages. The repository is private and has
+  2000 free Actions minutes a month. Do not run the build more often.
+- `canonical=False` in `fast_app()`. FastHTML adds a canonical link with the
+  host of the request, and in a build that host is `testserver`.
+- `AGES` — the script that counts the age again in the browser. It follows
+  the rule of `age()`. Change both together.
 - `@rt("/")` — shows the HN table. The header bar is sky-500. The column is
   sky-50. The page behind the column is white. The width is 85%.
 - `CSS` — a port of `news.ycombinator.com/news.css` with a different palette.

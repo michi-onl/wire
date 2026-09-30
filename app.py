@@ -4,6 +4,8 @@ import json
 import math
 import os
 import re
+import shutil
+import sys
 import time
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
@@ -11,15 +13,17 @@ from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
 import feedparser
 import httpx
 from fasthtml.common import (
-    A, B, Br, Div, Link, Meta, Response, Span, Style, Table, Td, Tr,
+    A, B, Br, Div, Link, Meta, Response, Script, Span, Style, Table, Td, Tr,
     fast_app, serve,
 )
+from starlette.testclient import TestClient
 
 TTL = 300
 HOST = os.environ.get("WIRE_HOST", "127.0.0.1")
 PORT = int(os.environ.get("WIRE_PORT", "5001"))
 ALLOW_REFRESH = os.environ.get("WIRE_ALLOW_REFRESH", "0") == "1"
 RELOAD = os.environ.get("WIRE_RELOAD", "0") == "1"
+SEEN = os.environ.get("WIRE_SEEN", "seen.json")
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126 Safari/537.36")
 
@@ -299,6 +303,24 @@ def age(ts):
         if delta >= step:
             return f"{int(delta // step)}{unit} ago"
     return "just now"
+
+
+# A static build serves one page for many minutes, so the browser counts the
+# age again. The rule is the rule of age().
+AGES = """
+function wireAges() {
+  var now = Date.now() / 1000;
+  document.querySelectorAll(".age[data-ts]").forEach(function (e) {
+    var d = Math.max(0, now - e.dataset.ts), t = "just now";
+    [[86400, "d"], [3600, "h"], [60, "m"]].some(function (s) {
+      if (d >= s[0]) { t = Math.floor(d / s[0]) + s[1] + " ago"; return true; }
+    });
+    e.textContent = t;
+  });
+}
+wireAges();
+setInterval(wireAges, 60000);
+"""
 
 
 def canonical(url):
@@ -623,6 +645,24 @@ def prune():
             del _seen[k]
 
 
+def load_seen(path):
+    """Read the counts of the last build. Each build is a new process."""
+    global _boot
+    try:
+        with open(path) as f:
+            _seen.update(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    prune()
+    # With no count to compare, every row would qualify as new.
+    _boot = not _seen
+
+
+def save_seen(path):
+    with open(path, "w") as f:
+        json.dump(_seen, f)
+
+
 def score(c):
     """The value of one row, in bits. Every term is a sum, so the page can
     explain itself: standing, agreement, gain, topic, publisher, minus age."""
@@ -715,7 +755,7 @@ def subline(c):
     if c["points"] is not None:
         bits += [Span(f"{c['points']} points", cls="score"), " "]
     bits += ["by ", A(c["source"], href=HOMES[c["source"]], cls="hnuser"), " ",
-             Span(age(c["published"]), cls="age")]
+             Span(age(c["published"]), cls="age", data_ts=int(c["published"]))]
     if c["comments"] is not None:
         bits += [" | ", f"{c['comments']} comments"]
     # Every source that carried the story, so the reader can compare accounts.
@@ -757,7 +797,8 @@ def story_row(c):
 
 
 app, rt = fast_app(title="wire", hdrs=(Style(CSS), *ICONS),
-                   static_path="static", pico=False, surreal=False, htmx=False)
+                   static_path="static", pico=False, surreal=False, htmx=False,
+                   canonical=False)
 
 
 @rt("/manifest.webmanifest")
@@ -808,9 +849,33 @@ async def index(refresh: int = 0):
                  " | updated " + _cache["wall"], cls="yclinks"),
             style="text-align:center;padding-bottom:16px"),
     ))
-    return Table(header, pagespace, status, body, footer,
-                 id="hnmain", cellspacing="0", cellpadding="0", border="0")
+    return (Table(header, pagespace, status, body, footer,
+                  id="hnmain", cellspacing="0", cellpadding="0", border="0"),
+            Script(AGES))
+
+
+def build(out, seen=SEEN):
+    """Write the page as static files, for a host that runs no Python."""
+    load_seen(seen)
+    with TestClient(app) as client:
+        page = client.get("/")
+        manifest = client.get("/manifest.webmanifest")
+    page.raise_for_status()
+    manifest.raise_for_status()
+    # With no row, the host keeps the last page and not an empty one.
+    if not _cache["stories"]:
+        raise SystemExit("no stories: " + "; ".join(_cache["errors"]))
+    shutil.copytree("static", out, dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns(".*"))
+    with open(os.path.join(out, "index.html"), "w") as f:
+        f.write(page.text)
+    with open(os.path.join(out, "manifest.webmanifest"), "w") as f:
+        f.write(manifest.text)
+    save_seen(seen)
 
 
 if __name__ == "__main__":
-    serve(host=HOST, port=PORT, reload=RELOAD)
+    if sys.argv[1:2] == ["build"]:
+        build(sys.argv[2] if len(sys.argv) > 2 else "dist")
+    else:
+        serve(host=HOST, port=PORT, reload=RELOAD)

@@ -2,10 +2,14 @@
 
 Run it with:  .venv/bin/python -m unittest discover -s test -p 'test_*.py'
 """
+import json
 import os
+import shutil
 import sys
+import tempfile
 import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -380,6 +384,70 @@ class Parse(unittest.TestCase):
         self.assertEqual(rows[0]["publisher"], "thehill.com")
         self.assertIn("reddit.com", rows[0]["discuss"])
         self.assertIn("reddit.com", rows[0]["origin"])
+
+
+class Build(unittest.TestCase):
+    ROWS = [
+        ("Harbor cranes stall during Rotterdam strike", "https://e.com/cranes"),
+        ("Glacier probe finds a hidden lake", "https://e.com/glacier"),
+    ]
+
+    def setUp(self):
+        app._seen.clear()
+        app._boot = True
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        self.out = os.path.join(tmp, "dist")
+        self.seen = os.path.join(tmp, "seen.json")
+
+    def run_build(self, rows):
+        """One build in a fresh process: memory starts empty, the file stays."""
+        app._seen.clear()
+        app._cache.update(at=0.0, stories=[], errors=[])
+        batch = [item(t, "HN", u, points=50) for t, u in rows]
+
+        async def fetch_one(client, src):
+            if src["name"] != "HN":
+                return src["name"], [], None
+            return src["name"], batch, None
+
+        with mock.patch.object(app, "fetch_one", fetch_one):
+            app.build(self.out, self.seen)
+        with open(os.path.join(self.out, "index.html")) as f:
+            return f.read()
+
+    def test_the_build_writes_the_page_and_the_files(self):
+        page = self.run_build(self.ROWS)
+        self.assertIn(self.ROWS[0][0], page)
+        self.assertIn('id="hnmain"', page)
+        for name in ("favicon.svg", "patreon.user.js", "manifest.webmanifest"):
+            self.assertTrue(os.path.exists(os.path.join(self.out, name)), name)
+
+    def test_the_page_carries_the_time_for_the_browser(self):
+        page = self.run_build(self.ROWS)
+        self.assertIn('data-ts="', page)
+        self.assertNotIn("testserver", page)
+        self.assertIn("wireAges()", page)
+
+    def test_the_second_build_marks_only_the_new_row(self):
+        first = self.run_build(self.ROWS[:1])
+        self.assertNotIn('class="badge"', first)
+        # Age the saved counts, so the first row is no longer recent.
+        with open(self.seen) as f:
+            seen = json.load(f)
+        for v in seen.values():
+            v["first"] -= 3600
+            v["at"] -= 3600
+        with open(self.seen, "w") as f:
+            json.dump(seen, f)
+        second = self.run_build(self.ROWS)
+        self.assertEqual(second.count('class="badge"'), 1)
+
+    def test_a_build_with_no_stories_writes_nothing(self):
+        with self.assertRaises(SystemExit):
+            self.run_build([])
+        self.assertFalse(os.path.exists(self.out))
+        self.assertFalse(os.path.exists(self.seen))
 
 
 if __name__ == "__main__":

@@ -5,3 +5,5 @@ __pycache__/
 .sesskey
 .DS_Store
 *.local.md
+dist/
+seen.json

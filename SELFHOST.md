@@ -18,10 +18,48 @@ Open <http://localhost:5001>.
 | `WIRE_PORT`         | `5001`      | Changes the port                                     |
 | `WIRE_ALLOW_REFRESH`| `0`         | Set to `1` to allow `/?refresh=1`                    |
 | `WIRE_RELOAD`       | `0`         | Set to `1` to enable the dev reloader (watchfiles)   |
+| `WIRE_SEEN`         | `seen.json` | The file where a static build keeps the counts       |
 
 `/?refresh=1` bypasses the five-minute cache. It forces one upstream request
 for each source. The function can amplify traffic, so wire disables it by
 default and hides the refresh link until you set the variable.
+
+## Static build
+
+wire can also run with no server. A build writes the page as static files:
+
+```sh
+.venv/bin/python app.py build dist
+```
+
+`dist/` then holds `index.html`, `manifest.webmanifest`, and the files of
+`static/`. Any static host can serve it. The build fetches the sources once and
+renders `/` in the process, so the page is the page of the server.
+
+A build is a new process, so `_seen` starts empty. The build reads it from
+`WIRE_SEEN` and writes it back, so `new` and `rising` work across builds. The
+page shows the age of each row, and a small script counts it again in the
+browser, because a static page stays for up to an hour.
+
+If no source answers, the build writes nothing and exits with an error. The
+host then keeps the last page.
+
+`.github/workflows/build.yml` runs the build every hour on GitHub Actions
+and deploys `dist/` to Cloudflare Pages. The repository is private, and a
+private repository has 2000 free Actions minutes a month. A run takes one to
+two minutes, so do not run the build more often. The workflow needs a Pages
+project named `wire` and two secrets:
+`CLOUDFLARE_API_TOKEN` with the permission "Cloudflare Pages: Edit", and
+`CLOUDFLARE_ACCOUNT_ID`. With no token, a run builds and skips the deploy.
+The workflow keeps `seen.json` in the Actions cache.
+
+Know these limits:
+
+- Reddit, and sometimes Reuters, block the addresses of cloud runners. The
+  page then shows `unavailable: Reddit` and ranks the other sources.
+- GitHub starts a scheduled run late when its load is high.
+- The workflow sets `TZ=Europe/Berlin`, because the runner uses UTC and the
+  footer shows the time of the build.
 
 ## Sources
 
@@ -103,7 +141,8 @@ service page that a top list sometimes holds.
 for each story address, so `observe()` can tell a gain from a level and mark a
 row `rising` or `new`. It holds nothing about a reader. `prune()` drops an
 entry after 24 hours and caps the dict at 5000 entries. A restart empties it,
-and the first load after a restart marks no row `new`.
+and the first load after a restart marks no row `new`. A static build keeps it
+in `WIRE_SEEN` between runs.
 
 ## Sources not included
 
