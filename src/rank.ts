@@ -3,9 +3,16 @@ import { decode } from "html-entities";
 // Python `\w` and `\b` read Unicode. JS `\w` and `\b` read ASCII alone, even
 // with the `u` flag, and then split "Söder" into "s" and "der". Each rule
 // below thus spells a word letter as W and a word edge as a lookaround.
-const W = String.raw`[\p{L}\p{N}_]`;
-const START = String.raw`(?<![\p{L}\p{N}_])`;
-const END = String.raw`(?![\p{L}\p{N}_])`;
+// W is not `[\p{L}\p{N}_]`. V8 compiles a regex again for a string with a
+// character above U+00FF, such as a dash, and with \p{L} that costs 7 ms for
+// one rule. A Worker has 10 ms. W lists the letters and digits that Python
+// `\w` reads in Latin, Greek, Cyrillic, kana, CJK, and Hangul, and nothing
+// else, so a rule costs 0.5 ms. In other scripts a letter counts as a word
+// edge. scripts/word-class.mjs writes the list.
+const W_SET = "0-9A-Z_a-z\u00AA\u00B2-\u00B3\u00B5\u00B9-\u00BA\u00BC-\u00BE\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02C1\u02C6-\u02D1\u02E0-\u02E4\u02EC\u02EE\u0370-\u0374\u0376-\u0377\u037A-\u037D\u037F\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03F5\u03F7-\u0481\u048A-\u052F\u3041-\u3096\u309D-\u309F\u30A1-\u30FA\u30FC-\u30FF\u3105-\u312F\u3131-\u318E\u3192-\u3195\u31A0-\u31BF\u31F0-\u31FF\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7A3";
+const W = `[${W_SET}]`;
+const START = `(?<!${W})`;
+const END = `(?!${W})`;
 const re = (src: string, flags = "") => new RegExp(src, flags + "u");
 const words = (body: string, flags = "i") => re(`${START}(?:${body})${END}`, flags);
 
@@ -302,7 +309,7 @@ export function prominence(s: Story): number {
   return 0.32;
 }
 
-const NOT_WORD = /[^\p{L}\p{N}_\s]/gu;
+const NOT_WORD = new RegExp(`[^${W_SET}\\s]`, "gu");
 
 export function tokens(title: string): Set<string> {
   const out = new Set<string>();
