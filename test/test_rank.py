@@ -2,6 +2,8 @@
 
 Run it with:  .venv/bin/python -m unittest discover -s test -p 'test_*.py'
 """
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -411,7 +413,8 @@ class Build(unittest.TestCase):
                 return src["name"], [], None
             return src["name"], batch, None
 
-        with mock.patch.object(app, "fetch_one", fetch_one):
+        with (mock.patch.object(app, "fetch_one", fetch_one),
+              contextlib.redirect_stdout(io.StringIO())):
             app.build(self.out, self.seen)
         with open(os.path.join(self.out, "index.html")) as f:
             return f.read()
