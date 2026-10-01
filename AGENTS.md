@@ -67,8 +67,8 @@
   inside `PAIR_WINDOW`; two alone join two unrelated reports about one person.
   Measure before you move `SIM_MIN`: on a live batch the true pairs sit above
   0.5 and the false pairs below 0.24.
-- `score()` — a sum of bits: prominence, agreement between sources, gain,
-  topic, publisher, minus `GRAVITY * log2(age_hours + AGE_FLOOR)`. Keep it
+- `score()` — a sum of bits: prominence, agreement between sources, topic,
+  publisher, minus `GRAVITY * log2(age_hours + AGE_FLOOR)`. Keep it
   additive. A reader can then weigh one part against another.
 - `AGE_FLOOR` is 4 hours on purpose. A wire republishes an item and the clock
   restarts. A low floor gives the page to whatever a wire posted last, which
@@ -78,27 +78,14 @@
   costs more than a small loss of quality. `SOFT_FLOOR` keeps culture and
   celebrity off the head of the page.
 - `_cache` — a dict and a monotonic timestamp.
-- `_seen` — a dict in memory with the last counts for each story address, so
-  `observe()` can tell a gain from a level. It holds nothing about a reader.
-  `prune()` drops an entry after 24 hours and caps it at 5000. The first load
-  after a restart marks no row `new`, because every row would qualify.
+- wire keeps no state between two refreshes. It had a `new` and a `rising`
+  mark from a dict of the last counts. Those marks left on 2026-10-01: a host
+  that starts a new process for each request cannot keep the dict.
 - Test the ranking with
   `.venv/bin/python -m unittest discover -s test -p 'test_*.py'`. The tests
   make no network request. Add a test when you change a rule. Give each test
   headline different words: similar titles join into one row, and the test
   then measures nothing.
-- `build()` — writes the page as static files for a host that runs no Python.
-  It renders `/` and `/manifest.webmanifest` in the process with
-  `TestClient`, so the page is the page of the server. Do not build a second
-  renderer. It copies `static/` and keeps `_seen` in `WIRE_SEEN` between runs.
-  It exits with an error and writes nothing when no source answers, so the
-  host keeps the last page. `.github/workflows/build.yml` runs it every hour
-  and deploys `dist/` to Cloudflare Pages. The repository is private and has
-  2000 free Actions minutes a month. Do not run the build more often.
-- `canonical=False` in `fast_app()`. FastHTML adds a canonical link with the
-  host of the request, and in a build that host is `testserver`.
-- `AGES` — the script that counts the age again in the browser. It follows
-  the rule of `age()`. Change both together.
 - `@rt("/")` — shows the HN table. The header bar is sky-500. The column is
   sky-50. The page behind the column is white. The width is 85%.
 - `CSS` — a port of `news.ycombinator.com/news.css` with a different palette.
@@ -154,9 +141,9 @@
 
 ## Deploy
 
-- wire runs on a Proxmox container. The steps and the addresses are in
-  `DEPLOY.local.md`. Git ignores that file, because the addresses are local.
-  Read it before you deploy. Never put the addresses in a file that Git
+- wire has no host at the moment. The Proxmox container is gone. The plan is
+  a port to Hono on Cloudflare Workers. `DEPLOY.local.md` holds the state.
+  Git ignores that file. Never put a local address in a file that Git
   contains.
 
 ## Verify the userscript

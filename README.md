@@ -27,9 +27,6 @@ main signal.
   row, not three.
 - **Standing.** wire reads the position of an item on its own front page, and
   the points on Hacker News.
-- **Gain.** wire compares each story with the last refresh. A story that wins
-  points fast gets a `rising` mark. A story that just arrived gets a `new`
-  mark.
 - **Age.** An old story goes down the list. A fresh story does not win on age
   alone, because a news wire republishes an item and the clock restarts.
 - **Topic.** World news, technology, science, and German news come first.

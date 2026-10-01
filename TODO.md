@@ -32,8 +32,6 @@ constant.
   carry one election. The filter thus removes rows with a high `W_CORR` term,
   and single-source rows take their place. Watch the source mix of the head of
   the page after a change to `POL_DROP`.
-- `observe()` needs two refreshes before it can mark a row `rising`. After a
-  restart the marks stay off for five minutes.
 - The Verge scrape returns fewer items than its cap when the homepage layout
   changes. A failure there is silent: the source simply gets smaller.
 

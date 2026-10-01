@@ -4,8 +4,6 @@ import json
 import math
 import os
 import re
-import shutil
-import sys
 import time
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
@@ -13,17 +11,15 @@ from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
 import feedparser
 import httpx
 from fasthtml.common import (
-    A, B, Br, Div, Link, Meta, Response, Script, Span, Style, Table, Td, Tr,
+    A, B, Br, Div, Link, Meta, Response, Span, Style, Table, Td, Tr,
     fast_app, serve,
 )
-from starlette.testclient import TestClient
 
 TTL = 300
 HOST = os.environ.get("WIRE_HOST", "127.0.0.1")
 PORT = int(os.environ.get("WIRE_PORT", "5001"))
 ALLOW_REFRESH = os.environ.get("WIRE_ALLOW_REFRESH", "0") == "1"
 RELOAD = os.environ.get("WIRE_RELOAD", "0") == "1"
-SEEN = os.environ.get("WIRE_SEEN", "seen.json")
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126 Safari/537.36")
 
@@ -39,7 +35,6 @@ SHOWN = 30           # rows on the page
 
 W_PROM = 2.2         # standing inside its own source
 W_CORR = 1.9         # independent sources on the same story
-W_VEL = 1.2          # gain since the last refresh
 W_TOPIC = 1.0        # topic fit
 W_PUB = 1.0          # publisher
 W_POL = 1.8          # cost for party politics, at full confidence
@@ -235,9 +230,6 @@ a:visited { color: var(--sky-600); text-decoration: none; }
              border-left: 5px solid transparent; border-right: 5px solid transparent;
              border-bottom: 9px solid var(--sky-300); }
 .spacer { height: 5px; }
-.badge { font-size: 7pt; margin-left: 5px; padding: 0 3px;
-         border: 1px solid var(--sky-300); border-radius: 3px; }
-.badge.rising { background: var(--sky-300); color: var(--sky-950); }
 .corro { font-weight: bold; color: var(--sky-950); }
 
 /* mobile device */
@@ -303,24 +295,6 @@ def age(ts):
         if delta >= step:
             return f"{int(delta // step)}{unit} ago"
     return "just now"
-
-
-# A static build serves one page for many minutes, so the browser counts the
-# age again. The rule is the rule of age().
-AGES = """
-function wireAges() {
-  var now = Date.now() / 1000;
-  document.querySelectorAll(".age[data-ts]").forEach(function (e) {
-    var d = Math.max(0, now - e.dataset.ts), t = "just now";
-    [[86400, "d"], [3600, "h"], [60, "m"]].some(function (s) {
-      if (d >= s[0]) { t = Math.floor(d / s[0]) + s[1] + " ago"; return true; }
-    });
-    e.textContent = t;
-  });
-}
-wireAges();
-setInterval(wireAges, 60000);
-"""
 
 
 def canonical(url):
@@ -470,11 +444,6 @@ async def fetch_one(client, src):
 
 
 _cache = {"at": 0.0, "wall": "", "stories": [], "errors": []}
-# What wire saw on the last refresh, so it can tell a gain from a level. It
-# holds public counts for stories, never anything about a reader. It is a dict
-# in memory: a restart empties it.
-_seen = {}
-_boot = True
 
 AUTHORITY = {s["name"]: s["authority"] for s in SOURCES}
 PROM_MODE = {s["name"]: s["prominence"] for s in SOURCES}
@@ -575,10 +544,6 @@ def summarise(members):
         members=members, published=min(s["published"] for s in members),
         points=max((s["points"] or 0) for s in members) or None,
         comments=max((s["comments"] or 0) for s in members) or None,
-        # The lowest address, not the address of the best item. The best item
-        # changes when the counts move, and the row would then lose its
-        # history and claim to be new again.
-        key=min(s["key"] for s in members),
         prom=max(prominence(s) * AUTHORITY[s["source"]] for s in members))
 
 
@@ -616,57 +581,9 @@ def political(c):
     return min(1.0, pol)
 
 
-def observe(c):
-    """Compare the row with the last refresh. Returns the gain and two marks."""
-    now = time.time()
-    prev = _seen.get(c["key"])
-    signal = (c["points"] or 0) + 2 * (c["comments"] or 0) + 40 * c["prom"]
-    fresh, rising = False, False
-    vel = 0.0
-    if prev is None:
-        fresh = not _boot
-        _seen[c["key"]] = dict(first=now, at=now, signal=signal)
-    else:
-        hours = max(TTL / 3600.0, (now - prev["at"]) / 3600.0)
-        vel = max(0.0, (signal - prev["signal"]) / hours)
-        rising = vel >= 25.0
-        fresh = not _boot and (now - prev["first"]) < 2 * TTL
-        prev.update(at=now, signal=signal)
-    c["first_seen"] = _seen[c["key"]]["first"]
-    return min(1.0, vel / 120.0), fresh, rising
-
-
-def prune():
-    cut = time.time() - 86400
-    for k in [k for k, v in _seen.items() if v["at"] < cut]:
-        del _seen[k]
-    if len(_seen) > 5000:
-        for k in sorted(_seen, key=lambda k: _seen[k]["at"])[:len(_seen) - 5000]:
-            del _seen[k]
-
-
-def load_seen(path):
-    """Read the counts of the last build. Each build is a new process."""
-    global _boot
-    try:
-        with open(path) as f:
-            _seen.update(json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
-        pass
-    prune()
-    # With no count to compare, every row would qualify as new.
-    _boot = not _seen
-
-
-def save_seen(path):
-    with open(path, "w") as f:
-        json.dump(_seen, f)
-
-
 def score(c):
     """The value of one row, in bits. Every term is a sum, so the page can
-    explain itself: standing, agreement, gain, topic, publisher, minus age."""
-    vel, fresh, rising = observe(c)
+    explain itself: standing, agreement, topic, publisher, minus age."""
     name, tw = topic(c)
     pol = political(c)
     pub = 0.45 if PUB_GOOD.search(c["publisher"]) else \
@@ -674,10 +591,9 @@ def score(c):
     if CLICKBAIT.search(c["title"]):
         pub -= 0.8
     hours = max(0.0, time.time() - c["published"]) / 3600
-    c.update(topic=name, new=fresh, rising=rising, vel=vel, pol=pol)
+    c.update(topic=name, pol=pol)
     return (W_PROM * c["prom"]
             + W_CORR * math.log2(1 + len(c["sources"]))
-            + W_VEL * vel
             + W_TOPIC * tw
             + W_PUB * pub
             - W_POL * pol
@@ -721,7 +637,6 @@ def select(clusters, n):
 
 
 async def load(force=False):
-    global _boot
     now = time.monotonic()
     if not force and _cache["stories"] and now - _cache["at"] < TTL:
         return _cache["stories"], _cache["errors"]
@@ -735,8 +650,6 @@ async def load(force=False):
     clusters = cluster(stories)
     for c in clusters:
         c["score"] = score(c)
-    _boot = False
-    prune()
     ranked = select(clusters, SHOWN)
     for rank, c in enumerate(ranked, 1):
         c["rank"] = rank
@@ -755,7 +668,7 @@ def subline(c):
     if c["points"] is not None:
         bits += [Span(f"{c['points']} points", cls="score"), " "]
     bits += ["by ", A(c["source"], href=HOMES[c["source"]], cls="hnuser"), " ",
-             Span(age(c["published"]), cls="age", data_ts=int(c["published"]))]
+             Span(age(c["published"]), cls="age")]
     if c["comments"] is not None:
         bits += [" | ", f"{c['comments']} comments"]
     # Every source that carried the story, so the reader can compare accounts.
@@ -767,12 +680,6 @@ def subline(c):
 
 
 def story_row(c):
-    # A gain says more than an arrival, so one mark is enough.
-    marks = []
-    if c["rising"]:
-        marks.append(Span("rising", cls="badge rising"))
-    elif c["new"]:
-        marks.append(Span("new", cls="badge"))
     return (
         Tr(
             Td(Span(f"{c['rank']}.", cls="rank"), align="right", valign="top",
@@ -784,7 +691,6 @@ def story_row(c):
                     A(c["title"], href=c["url"]),
                     Span(" (", A(Span(c["publisher"], cls="sitestr"),
                                  href=c["url"]), ")", cls="sitebit comhead"),
-                    *marks,
                     cls="titleline",
                 ),
                 cls="title", valign="top",
@@ -797,8 +703,7 @@ def story_row(c):
 
 
 app, rt = fast_app(title="wire", hdrs=(Style(CSS), *ICONS),
-                   static_path="static", pico=False, surreal=False, htmx=False,
-                   canonical=False)
+                   static_path="static", pico=False, surreal=False, htmx=False)
 
 
 @rt("/manifest.webmanifest")
@@ -849,36 +754,9 @@ async def index(refresh: int = 0):
                  " | updated " + _cache["wall"], cls="yclinks"),
             style="text-align:center;padding-bottom:16px"),
     ))
-    return (Table(header, pagespace, status, body, footer,
-                  id="hnmain", cellspacing="0", cellpadding="0", border="0"),
-            Script(AGES))
-
-
-def build(out, seen=SEEN):
-    """Write the page as static files, for a host that runs no Python."""
-    load_seen(seen)
-    with TestClient(app) as client:
-        page = client.get("/")
-        manifest = client.get("/manifest.webmanifest")
-    page.raise_for_status()
-    manifest.raise_for_status()
-    # With no row, the host keeps the last page and not an empty one.
-    if not _cache["stories"]:
-        raise SystemExit("no stories: " + "; ".join(_cache["errors"]))
-    shutil.copytree("static", out, dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns(".*"))
-    with open(os.path.join(out, "index.html"), "w") as f:
-        f.write(page.text)
-    with open(os.path.join(out, "manifest.webmanifest"), "w") as f:
-        f.write(manifest.text)
-    save_seen(seen)
-    # One line for the log of the scheduler.
-    print(f"{len(_cache['stories'])} rows; unavailable: "
-          + ("; ".join(_cache["errors"]) or "none"))
+    return Table(header, pagespace, status, body, footer,
+                 id="hnmain", cellspacing="0", cellpadding="0", border="0")
 
 
 if __name__ == "__main__":
-    if sys.argv[1:2] == ["build"]:
-        build(sys.argv[2] if len(sys.argv) > 2 else "dist")
-    else:
-        serve(host=HOST, port=PORT, reload=RELOAD)
+    serve(host=HOST, port=PORT, reload=RELOAD)
