@@ -5,3 +5,7 @@ __pycache__/
 .sesskey
 .DS_Store
 *.local.md
+node_modules/
+.wrangler/
+.dev.vars
+bench/bodies/
