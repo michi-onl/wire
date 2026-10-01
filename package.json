@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "check": "tsc --noEmit",
-    "test": "vitest run",
+    "check": "tsc --noEmit && tsc --noEmit -p bench && node --check static/patreon.user.js",
+    "test": "vitest run && node --test \"test/*.mjs\"",
     "bench": "tsx bench/bench.ts"
   },
   "dependencies": {
