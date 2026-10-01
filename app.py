@@ -872,6 +872,9 @@ def build(out, seen=SEEN):
     with open(os.path.join(out, "manifest.webmanifest"), "w") as f:
         f.write(manifest.text)
     save_seen(seen)
+    # One line for the log of the scheduler.
+    print(f"{len(_cache['stories'])} rows; unavailable: "
+          + ("; ".join(_cache["errors"]) or "none"))
 
 
 if __name__ == "__main__":
