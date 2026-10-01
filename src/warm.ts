@@ -20,7 +20,7 @@ const RSS = `<rss version="2.0"><channel>
 const ATOM = `<feed xmlns="http://www.w3.org/2005/Atom">
 <entry><title>Minister – Selenskyj trifft Merz</title><updated>${DATE}</updated>
 <link href="https://www.reddit.com/r/worldnews/comments/1/x/"/>
-<content type="html">&lt;span&gt;&lt;a href="https://example.org/x?a=1&amp;amp;utm_source=y"&gt;[link]&lt;/a&gt;&lt;/span&gt;</content></entry>
+<content type="html">&lt;span&gt;&lt;a href=&quot;https://example.org/x?a=1&amp;amp;utm_source=y&quot;&gt;[link]&lt;/a&gt;&lt;/span&gt;</content></entry>
 <entry><title>Five reasons the election matters</title><updated>${DATE}</updated>
 <link rel="alternate" href="https://www.reddit.com/r/news/comments/2/y/"/><content type="html">x</content></entry>
 </feed>`;
@@ -29,6 +29,8 @@ const SITEMAP = `<urlset>
 <news:title><![CDATA[Wahl – Koalition in Österreich]]></news:title></news:news></url>
 <url><loc>https://www.reuters.com/world/b/</loc><news:news><news:publication_date>${DATE}</news:publication_date>
 <news:title>Trump card for the mining appeal</news:title></news:news></url>
+<url><loc>https://www.reuters.com/world/c/</loc><news:news><news:publication_date>${DATE}</news:publication_date>
+<news:title>Leica – a webring of typefaces for the GOP</news:title></news:news></url>
 </urlset>`;
 
 export function warm() {

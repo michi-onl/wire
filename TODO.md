@@ -18,17 +18,31 @@ constant.
 - The topic rules read the address. A story in r/technology about tax policy
   counts as `tech`. The rules cannot see the text.
 - The politics filter reads the headline and one section, `spiegel.de/politik/`.
-  Reuters, Reddit, and HN give no politics section, so the headline is the only
-  signal there. A political story under a neutral headline stays on the page.
-- `POL_ALWAYS` costs the most rows of any rule. One name took 7 rows of a
-  batch of 55, and 42 rows stayed for a page of 30. A second name there can
-  put the pool below `SHOWN`. Count a live batch before you add one, and raise
-  `max` and `window` in `SOURCES` if the margin gets thin.
+  Reuters and HN give no politics section, so the headline is the only signal
+  there. A political story under a neutral headline stays on the page.
+- `POL_ALWAYS` misses the German genitive "Trumps", as in "Trumps Zölle". The
+  rule cannot read it, because "trumps" is also an English verb. The SPIEGEL
+  address usually holds `donald-trump`, so the rule catches most such rows.
+  Count the leaks in a live batch.
+- `POL_MAJOR` asks for three sources. Only four sources carry general news,
+  and a German and an English report of one event often stay apart. Thus a
+  major political story can still miss the page. Watch for that after a large
+  election.
+- The focus title rules read a few words, such as `poster` and `logo`. Such a
+  word can appear in a story outside the field, and the row then gets
+  `W_FOCUS`. Read the head of the page after a week.
+- Many Reddit posts are questions of the community, such as "any artists?".
+  The low `authority` keeps most of them below the magazines. Read the head of
+  the page after a week.
+- `POL_ALWAYS` once cost the most rows of any rule. One name took 7 rows of a
+  batch of 55 news rows. The focus sources now fill the pool: the batch of
+  2026-10-01 left 76 rows for a page of 30. Count a live batch after you add
+  a term, and raise `max` and `window` in `SOURCES` if the margin gets thin.
 - `POL_NAMES` holds 24 names and ages with every election. A new head of
   government is the gap that hurts: a name that left office costs nothing, and
   a name that wire does not know scores zero. Review the list after an
   election, and count the names of a live batch to find who is missing.
-- Party politics is where agreement is strongest, because all five sources
+- Party politics is where agreement is strongest, because all news sources
   carry one election. The filter thus removes rows with a high `W_CORR` term,
   and single-source rows take their place. Watch the source mix of the head of
   the page after a change to `POL_DROP`.
@@ -41,9 +55,10 @@ constant.
 
 ## CPU
 
-- The CPU margin is thin. On a laptop, the first request after the warm-up
-  costs about 7 ms of the 10 ms that the free plan gives. Cloudflare servers
-  can be slower. Read the CPU time metric in the dashboard after the first
+- The CPU margin is thin. On the laptop of 2026-10-01, the first request
+  after the warm-up costs about 10 ms of the 10 ms that the free plan gives.
+  The 5 sources before cost 9.6 ms on the same laptop, so the 11 sources cost
+  about the same. Cloudflare servers can be slower. Read the CPU time metric in the dashboard after the first
   week, at the median and at the 99th percentile.
 - Confirm that Cloudflare does not count the CPU of the global scope as CPU
   of the first request. `src/warm.ts` depends on it.
@@ -53,28 +68,3 @@ constant.
 - `W_SET` covers Latin, Greek, Cyrillic, kana, CJK, and Hangul. In another
   script, a letter counts as a word edge. Add a block when a source starts to
   carry such a script.
-
-## Feature depth
-
-- Add a "load older" action. `/api/posts` gives a cursor. The script ignores it.
-  Walk the cursor on demand, with the same cap.
-- Auto-sync from the wire page. Today only a patreon.com visit auto-syncs. The
-  wire page can send `request_sync` once when the data is stale.
-- Make the rows richer. Show the teaser, a thumbnail, and a locked mark. The
-  fetch already reads `locked` and `is_nsfw`.
-- Mix the Patreon items with the server list. Rank them with HN and Reddit by
-  date. The rows now carry a timestamp and a topic, so the script can place an
-  item instead of holding a block of its own.
-- Add a stale hint and a clear sync result to the wire block. The button status
-  shows on patreon.com alone today.
-
-## Reuse
-
-- Match the gopher limits. Add backoff after a 429 for each run. Add a daily
-  cap. Today the script uses a flat 60-second cooldown.
-- Add a second platform. The cross-tab pattern is not specific to Patreon. Make
-  a design first.
-
-## Order
-
-1. Add "load older" or the richer rows.

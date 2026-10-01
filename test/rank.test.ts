@@ -4,9 +4,9 @@
 import { describe, expect, test } from "vitest";
 import { parseFeed, parseSitemap } from "../src/parse";
 import {
-  cluster, keep, now, political, POL_DROP, POL_NAMES, POL_STRONG, POL_WEAK, prominence,
-  score, select, SOFT_FLOOR, SOFT_TOPICS, story, tokens, topic, wall, canonical,
-  type Row, type Story, type StoryExtra,
+  allowed, cluster, keep, now, political, POL_DROP, POL_MAJOR, POL_NAMES, POL_STRONG,
+  POL_WEAK, prominence, score, select, SOFT_FLOOR, SOFT_TOPICS, story, tokens, topic, wall,
+  canonical, W_FOCUS, type Row, type Story, type StoryExtra,
 } from "../src/rank";
 
 function item(title: string, source: string, url: string,
@@ -101,6 +101,15 @@ describe("cluster", () => {
     expect(rows, "'Donald Trump' alone is not one story").toHaveLength(2);
   });
 
+  test("two posts with the stock words of a design magazine stay apart", () => {
+    const rows = cluster([
+      item("Brand Identity: Setenet by Estudio Reven", "Abduzeedo",
+        "https://abduzeedo.com/brand-identity-setenet/", { hours: 1 }),
+      item("Intuit introduces new brand identity for its products", "Creative Review",
+        "https://www.creativereview.co.uk/intuit-brand-identity/", { hours: 2 })]);
+    expect(rows).toHaveLength(2);
+  });
+
   test("two elections stay apart", () => {
     const rows = cluster([
       item("Far-left party wins Berlin election", "Reuters",
@@ -145,6 +154,52 @@ describe("score", () => {
     const c = cluster([item("A curious compiler story", "HN",
       "https://blog.example.com/x", { points: 50 })])[0];
     expect(topic(c)[0]).toBe("tech");
+  });
+
+  test("a focus source gives its field", () => {
+    for (const [source, url, field] of [
+      ["Creative Review", "https://www.creativereview.co.uk/a/", "design"],
+      ["PetaPixel", "https://petapixel.com/2026/10/01/a/", "photo"],
+      ["Bear Blog", "https://someone.example/post/", "smallweb"]]) {
+      expect(topic(cluster([item("Plain words", source, url)])[0]), source)
+        .toEqual([field, W_FOCUS]);
+    }
+  });
+
+  test("a subreddit gives its field", () => {
+    const c = cluster([item("Help with my site", "Reddit",
+      "https://www.reddit.com/r/neocities/comments/1/help/")])[0];
+    expect(topic(c)[0]).toBe("smallweb");
+  });
+
+  test("a focus word on a general source gives the field", () => {
+    for (const [title, field] of [["A new typeface for road signs", "design"],
+      ["Leica cuts the price of its rangefinder", "photo"],
+      ["Show HN: A webring for personal sites", "smallweb"]]) {
+      expect(topic(cluster([item(title, "HN", "https://blog.example.com/x")])[0])[0], title)
+        .toBe(field);
+    }
+  });
+
+  test("a road camera is not photography", () => {
+    const c = cluster([item("City adds speed cameras on the ring road", "Reuters",
+      "https://www.reuters.com/world/europe/speed-1/")])[0];
+    expect(topic(c)[0]).toBe("world");
+  });
+
+  test("a focus row keeps its field when a wire gives the headline", () => {
+    const url = "https://petapixel.com/2026/10/01/dji-cameras/";
+    const c = cluster([item("DJI outsells the Japanese makers", "PetaPixel", url),
+      item("DJI outsells the Japanese makers", "Reuters", url)])[0];
+    expect(topic(c)[0]).toBe("photo");
+  });
+
+  test("a focus row beats an equal news row", () => {
+    const design = cluster([item("Studio redraws the city wordmark", "Creative Review",
+      "https://www.creativereview.co.uk/city-wordmark/", { hours: 3 })])[0];
+    const news = cluster([item("Port reopens after the storm", "Reuters",
+      "https://www.reuters.com/world/port-1/", { hours: 3 })])[0];
+    expect(score(design)).toBeGreaterThan(score(news) + 2);
   });
 
   test("a podcast slug counts as soft", () => {
@@ -197,8 +252,8 @@ describe("select", () => {
   });
 });
 
-// Party politics leaves the list. An act of government stays, because a
-// court ruling and an export rule are why a reader opens wire.
+// Party politics leaves the list, unless it is major news. Plain government
+// news stays and pays.
 describe("politics", () => {
   const pol = (title: string, source = "Reddit",
                url = "https://www.reddit.com/r/worldnews/a/") =>
@@ -229,10 +284,41 @@ describe("politics", () => {
   });
 
   test("a politician alone does not drop the row", () => {
-    // An act of government. The name costs the row a little and no more.
-    const p = pol("Merz government prepares sanctions against the court",
-      "Reuters", "https://www.reuters.com/legal/icc-1/");
+    // The name costs the row a little and no more.
+    const p = pol("Merz opens a chip plant in Dresden",
+      "Reuters", "https://www.reuters.com/business/chip-1/");
     expect(p > 0 && p < POL_DROP, String(p)).toBe(true);
+  });
+
+  test("weak words add up", () => {
+    // Each word alone fits plain government news. Three of them are politics.
+    expect(pol("Merz government prepares sanctions against the court", "Reuters",
+      "https://www.reuters.com/legal/icc-1/")).toBeGreaterThanOrEqual(POL_DROP);
+  });
+
+  test("the name of a party is decisive", () => {
+    expect(pol("Rechtsextremer Aktivist bei Übung von AfD-Mann eingeschleust", "SPIEGEL",
+      "https://www.spiegel.de/ausland/b/")).toBeGreaterThanOrEqual(POL_DROP);
+  });
+
+  test("a political story that many sources carry stays", () => {
+    // News that the mainstream knows. It still pays W_POL.
+    const url = "https://www.reuters.com/world/europe/vote-2/";
+    const row = (sources: string[]) => {
+      const c = cluster(sources.map((s) => item("Governing bloc loses the runoff", s, url)))[0];
+      c.score = score(c);
+      return c;
+    };
+    expect(allowed(row(["Reuters", "SPIEGEL", "HN"].slice(0, POL_MAJOR)))).toBe(true);
+    expect(allowed(row(["Reuters", "SPIEGEL"]))).toBe(false);
+  });
+
+  test("a MAGA row leaves even when many sources carry it", () => {
+    const url = "https://www.reuters.com/world/us/maga-1/";
+    const c = cluster(["Reuters", "SPIEGEL", "HN", "The Verge"].map((s) =>
+      item("MAGA rally fills the arena", s, url)))[0];
+    c.score = score(c);
+    expect(allowed(c)).toBe(false);
   });
 
   test("a politician and a campaign word drop the row", () => {
@@ -257,10 +343,23 @@ describe("politics", () => {
       "https://www.reuters.com/world/us/trump-chips-1/")).toBe(1);
   });
 
+  test("the always list holds the MAGA movement", () => {
+    for (const title of ["MAGA activists target the library board",
+      "Hegseth orders a review of the base", "Vance meets the chip makers",
+      "Truth Social loses another payment partner", "Proud Boys leader released",
+      "Charlie Kirk event draws protest", "Turning Point USA opens a campus office",
+      "Project 2025 author joins the agency"]) {
+      expect(pol(title, "Reuters", "https://www.reuters.com/world/us/x/"), title).toBe(1);
+    }
+  });
+
   test("the always list is a name and not a noun", () => {
-    // A trump card is a card, and "trumps" is a verb.
+    // A trump card is a card, "trumps" is a verb, a turning point is a moment,
+    // and Ashlee Vance writes about tech. A magazine is not MAGA.
     for (const title of ["A trump card for the defence in the mining appeal",
-      "Battery life trumps raw speed in the new handset"]) {
+      "Battery life trumps raw speed in the new handset",
+      "A turning point for small cameras", "Ashlee Vance on the rocket startup",
+      "The magazine that redrew its masthead"]) {
       expect(pol(title, "The Verge", "https://www.theverge.com/tech/1/x/"), title).toBe(0);
     }
   });
@@ -371,6 +470,30 @@ describe("parse", () => {
     expect(rows[0].publisher).toBe("thehill.com");
     expect(rows[0].discuss).toContain("reddit.com");
     expect(rows[0].origin).toContain("reddit.com");
+  });
+
+  test("a Reddit image post points at the thread", () => {
+    const body = `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>My new poster</title>
+      <link href="https://www.reddit.com/r/graphic_design/comments/1c/poster/"/>
+      <content type="html">&lt;span&gt;&lt;a href=&quot;https://i.redd.it/abc.jpeg&quot;&gt;[link]&lt;/a&gt;&lt;/span&gt;</content>
+      </entry></feed>`;
+    expect(parseFeed(body, "Reddit")[0].url)
+      .toBe("https://www.reddit.com/r/graphic_design/comments/1c/poster/");
+  });
+
+  test("the Reddit target reads the escaped quotes of the live feed", () => {
+    const body = `<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Fees rise</title>
+      <link href="https://www.reddit.com/r/photography/comments/1d/fees/"/>
+      <content type="html">&lt;span&gt;&lt;a href=&quot;https://example.com/a?x=1&amp;amp;y=2&quot;&gt;[link]&lt;/a&gt;&lt;/span&gt;</content>
+      </entry></feed>`;
+    expect(parseFeed(body, "Reddit")[0].url).toBe("https://example.com/a?x=1&y=2");
+  });
+
+  test("the parser reads only the window and keeps the full count", () => {
+    const entry = (i: number) => `<item><title>Item ${i}</title><link>https://e.com/${i}</link></item>`;
+    const body = `<rss><channel>${[0, 1, 2, 3, 4].map(entry).join("")}</channel></rss>`;
+    const rows = parseFeed(body, "PetaPixel", 2);
+    expect(rows.map((r) => [r.pos, r.n])).toEqual([[0, 5], [1, 5]]);
   });
 
   test("an ampersand in the Reddit target is decoded", () => {

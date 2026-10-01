@@ -12,6 +12,16 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
 - `SOURCES` — one entry for each feed. Each entry has a `kind`: `feed`
   (RSS/Atom) or `sitemap`. Each entry also has a `prominence` mode (`points`,
   `position`, or `flat`), an `authority` multiplier, a `window`, and a `max`.
+  A source that covers one focus field also has a `topic`.
+- The reader opens wire for graphic design, photography, and the small web of
+  Neocities and personal sites. Six sources carry these fields: Creative
+  Review, Creative Boom, Abduzeedo, PetaPixel, Fstoppers, and Bear Blog. The
+  Reddit source reads design, photography, and Neocities subreddits. HN,
+  SPIEGEL, The Verge, and Reuters give the general news.
+- Reddit gets one request. Reddit answers a third quick request with a 429,
+  so a second Reddit source puts both at risk. Add a subreddit to the one
+  address. Do not add r/analog: its titles are camera specs, and it took 10
+  of 25 places.
 - The Verge uses the order of its feed. The Python version read the order of
   the homepage. That page is 1 MB of HTML, and its scrape alone cost more CPU
   than a Worker request may use. Do not add a homepage scrape.
@@ -22,45 +32,64 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
   minutes.
 - `items()` — reads `window` items, applies `keep()`, and then caps at `max`.
   Keep that order. A cap before the filter empties a noisy source: 30 of the
-  50 Reuters sitemap items are machine-written game recaps.
+  50 Reuters sitemap items are machine-written game recaps. The parser stops
+  after `window` entries, but `n` counts all entries, so the position keeps
+  its meaning.
+- `parseFeed()` reads the description only for HN and the content only for
+  Reddit. Reddit escapes its content as HTML, and `RD_ESCAPED` reads the link
+  in the escaped text. A decode of the whole content cost more than the rest
+  of the entry. A Reddit post with an image, a video, or a gallery links to
+  its thread.
 - `canonical()` — one address for one article. `parseFeed()` reads the
   outbound link of a Reddit post and of an HN item, so the row carries the
   address of the article, not of the aggregator. This is what lets two sources
   meet on one story, and it makes the row name the real publisher.
 - `keep()` — drops an item before it reaches the list: the `DROP` pattern of
   its source, a live blog, or an age above `MAX_AGE`.
-- `political()` — how sure wire is that a row is party politics, from 0 to 1.
-  The section gives 0.4, one decisive word gives 0.6, and each word that also
-  fits plain government news gives 0.25. `select()` drops a row at `POL_DROP`
-  or above. `score()` charges `W_POL` for a row below it. The scope is party
-  politics alone: an election, a party, a coalition, a campaign. An act of
-  government stays. A reader opens wire for the court ruling and the export
-  rule, so `lawmakers` and `minister` are weak words and cannot drop a row
-  alone.
+- `FOCUS` — the three focus fields: `design`, `photo`, and `smallweb`. Each
+  field has an address rule and a title rule. `topic()` reads the address
+  rule, then the `topic` of each source of the row, then the title rule. A
+  focus row gets `W_FOCUS`, 3 bits, which outweighs about a day of age. The
+  title rule must not read a common word: a bare "photos" is war news in
+  "satellite photos show", and a speed camera is not photography.
+- `STOP` holds the stock words of the design and photography magazines, such
+  as `brand`, `identity`, and `camera`. "Brand Identity: X by Y" heads many
+  unrelated posts, and two of them joined on those two words.
+- `political()` — how sure wire is that a row is politics, from 0 to 1. The
+  section gives 0.4, one decisive word gives 0.6, and each weak word gives
+  0.25. A decisive word is an election, a party, a coalition, a campaign, or
+  the name of a party. A weak word fits plain government news: a minister, a
+  sanction, a tariff. `score()` charges `W_POL`, 3.5 bits, for the part that
+  a row scores. The reader wants little politics, so the charge is high.
+- `allowed()` — `select()` drops a row at `POL_DROP` or above, unless
+  `POL_MAJOR` sources carry it. Such a row is news that the mainstream knows.
+  It stays and pays `W_POL` in full. A match of `POL_ALWAYS` never stays.
 - The drop sits in `select()` and not in `keep()`. `keep()` reads one item,
-  and all five sources carry politics, thus a drop there removes one copy and
-  `cluster()` then builds the same row again from the other four. Sport works
+  and the news sources all carry politics, thus a drop there removes one copy
+  and `cluster()` then builds the same row again from the others. Sport works
   in `keep()` because `DROP` holds every source that carries sport.
 - German builds a compound for each political word, thus no list of whole
   words holds them. A live batch gave `Parlamentswahl` and `Kremlpartei`, and
   both scored zero against such a list. `POL_STRONG` reads the stem of `wahl`
   and of `partei`, and names the exceptions: `Auswahl` is a selection and
   `wahlweise` means optionally.
-- `POL_ALWAYS` — the names that the reader never wants to read. A match
-  returns 1.0 at the top of `political()` and skips every other rule, thus the
-  row always leaves the page. This is a reader rule and not a measurement: it
-  removes an act of government too, which `POL_NAMES` is built to keep. Hold
-  the two lists apart. A name in `POL_ALWAYS` must not also sit in
-  `POL_NAMES`, because a tier cannot apply to it.
-- A name in `POL_ALWAYS` needs a guard that a weak name does not. A weak name
+- `POL_ALWAYS` — the MAGA movement: its names, slogans, groups, and media. The
+  reader never wants to read them. A match returns 1.0 at the top of
+  `political()` and skips every other rule. `allowed()` also refuses the row
+  when many sources carry it, thus the row always leaves the page. This is a
+  reader rule and not a measurement. Hold the two lists apart. A name in
+  `POL_ALWAYS` must not also sit in `POL_NAMES`, because a tier cannot apply
+  to it.
+- A term in `POL_ALWAYS` needs a guard that a weak name does not. A weak name
   costs 0.25 and a wrong match is cheap. Here a wrong match removes a story,
-  so the rule names the noun it must not read: a trump card is a card, and
-  "battery life trumps raw speed" is a verb.
-- `POL_NAMES` — the 24 politicians that the sources name most. A name is a
-  weak word, not a decisive one. A name alone must never drop a row, because
-  the same politician signs the export rule that the reader wants. A name and
-  one decisive word reach `POL_DROP` together. This also makes a surname that
-  is a common word cheap, such as Tusk.
+  so the rule names the word it must not read: a trump card is a card,
+  "battery life trumps raw speed" is a verb, a turning point is a moment, and
+  Ashlee Vance is a tech journalist. A surname that many people share, such
+  as Miller or Kirk, needs the first name.
+- `POL_NAMES` — the 22 politicians that the sources name most. A name is a
+  weak word, not a decisive one. A name alone must never drop a row. A name
+  and one decisive word reach `POL_DROP` together. This also makes a surname
+  that is a common word cheap, such as Tusk.
 - `POL_NAMES` is the one part of `src/rank.ts` with a shelf life. Review it
   after an election. Each source spells a transliterated name its own way:
   SPIEGEL writes Selenskyj and Netanjahu, Reuters writes Zelenskiy and
@@ -69,17 +98,19 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
   politics filter and not `cluster()`.
 - Measure a live batch before you add a word to `POL_STRONG`. The filter takes
   rows out of the pool after `cluster()`, so a wider rule shrinks the pool
-  below `SHOWN` and nothing warns you. The batch of 2026-09-21 dropped 6 rows
-  of 54 and left 48 for a page of 30.
+  below `SHOWN` and nothing warns you. The batch of 2026-10-01 dropped 1 row
+  of 77 and left 76 for a page of 30.
 - `cluster()` — joins the items that tell one story, on a shared address or on
-  shared rare title words. `idf()` adds 1 to every weight, because in a small
+  shared rare title words. An index of the words skips the pairs that share
+  fewer than two words. A pass over all pairs cost more CPU than the rest of
+  the ranking. `idf()` adds 1 to every weight, because in a small
   batch a shared word appears in every document and a pure count then calls it
   worthless. `sameStory()` needs three shared words, or two shared words
   inside `PAIR_WINDOW`; two alone join two unrelated reports about one person.
   Measure before you move `SIM_MIN`: on a live batch the true pairs sit above
   0.5 and the false pairs below 0.24.
 - `score()` — a sum of bits: prominence, agreement between sources, topic,
-  publisher, minus `GRAVITY * log2(age_hours + AGE_FLOOR)`. Keep it
+  publisher, politics, minus `GRAVITY * log2(age_hours + AGE_FLOOR)`. Keep it
   additive. A reader can then weigh one part against another.
 - `AGE_FLOOR` is 4 hours on purpose. A wire republishes an item and the clock
   restarts. A low floor gives the page to whatever a wire posted last, which
@@ -115,9 +146,13 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
 - A refresh usually runs in a new Worker, where V8 compiles each function and
   each regex on the first call. Measure the first run, not only the median.
 - `src/warm.ts` runs the full path three times in the global scope, on a tiny
-  batch. The global scope has its own limit of 1 second. On a laptop, this
-  takes the first request from 18 ms to 7 ms. When you add a rule, give the
-  warm batch a title that reaches it.
+  batch. The global scope has its own limit of 1 second. When you add a rule,
+  give the warm batch a title that reaches it. Six passes gave no gain over
+  three.
+- Each source adds parse time and rows to rank. On 2026-10-01, with 11
+  sources and 78 items, the first request after the warm-up cost 10 ms on a
+  laptop and a warm request cost 3.2 ms. The 5 sources before cost 9.6 ms and
+  3.1 ms on the same laptop. Lower `max` and `window` before you add a source.
 - `src/parse.ts` reads RSS and Atom with regexes. Do not add an XML library.
   `@rowanmanning/feed-parser` cost 4 ms warm and about 20 ms cold.
 - Do not call `Intl` in the request path. Its first call is slow. `wall()`
@@ -158,47 +193,17 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
 - `static/favicon.svg` — the HN icon with a white W on a sky-500 square. The W
   is the Verdana Regular glyph, kept as a path, not text. The PNG files come
   from this SVG.
-- `static/patreon.user.js` — a userscript. It is optional. The wire server does
-  not run it and does not store its data. It runs on patreon.com and on wire.
-  On patreon.com it reads the posts of the memberships with the session of the
-  page. The browser attaches the session. The script reads no password, cookie,
-  or token. It keeps the posts in the storage of the userscript, so only that
-  device shows them. On the wire page it adds a `patreon — this device` block.
-  `PACE` holds the request limits: a gap of 900 ms and a random quantity, and a
-  budget of 20 requests in 5 minutes. A run makes 9 requests at most. The script
-  ships with no account name. The first sync asks for the account and stores it
-  in the storage of the userscript, so each browser has its own list. The
-  account list is advisory. It is not a security boundary, and the wire server
-  has none. The script is a static file, thus Cloudflare serves it at
-  `/patreon.user.js` and the Worker needs no route for it.
 
 ## Test
 
-- `npm test` runs the ranking tests (vitest, `test/rank.test.ts`) and the mock
-  check-in test (`node --test`, `test/*.mjs`). The tests make no network
-  request. Add a test when you change a rule. Give each test headline
-  different words: similar titles join into one row, and the test then
-  measures nothing.
-- `node --test` runs every `.js` and `.ts` file below `test/`. Thus vitest
-  reads only `test/**/*.test.ts`, and `npm test` gives `node --test` the
-  `.mjs` files alone.
-- `npm run check` checks the types and the syntax of the userscript.
+- `npm test` runs the ranking tests (vitest, `test/rank.test.ts`). The tests
+  make no network request. Add a test when you change a rule. Give each test
+  headline different words: similar titles join into one row, and the test
+  then measures nothing.
+- `npm run check` checks the types of the Worker and of the bench.
 - `bench/parity.ts` prints the ranking of the saved batch as JSON. The Python
   version is in the history before commit d5c5fba. On 2026-10-01 both gave
   the same 57 rows with the same scores.
-
-## The Patreon account
-
-- Put no account data in the repository. This includes the account name, the
-  vanity, the account id, and the campaign ids. Keep them out of the source
-  files, the documents, the commit messages, and the test output.
-- The account name is per browser, and not in the Worker. Each browser stores
-  its own list in the userscript storage. Do not add a default name to the
-  script.
-- Make no request to patreon.com in a test. Mock the answers of `/api/posts` and
-  `/api/current_user`. Run such a test in a separate browser profile.
-- Do not send many requests and do not send them quickly. Read `PACE` before you
-  add a request.
 
 ## Deploy
 
@@ -208,17 +213,3 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
 - Use no Cloudflare API token and no GitHub Actions deploy.
 - `DEPLOY.local.md` holds the state. Git ignores that file. Never put a local
   address, a token, or account data in a file that Git contains.
-
-## Verify the userscript
-
-- `node --check static/patreon.user.js` — the syntax.
-- `node --test "test/*.mjs"` — the mock check-in test. It mocks
-  `/api/current_user` and `/api/posts`. It tests the caps and the account
-  gate. It sends no request to patreon.com. The test sets `__WIRE_TEST__`, so
-  the script skips the DOM bootstrap and exports `sync` and its helpers on
-  `globalThis.__wire`.
-- `curl -sS http://127.0.0.1:8787/patreon.user.js` — the route, with
-  `npx wrangler dev` running. Cloudflare serves the file from `static/`.
-- A live test needs Firefox with Tampermonkey. Ungoogled Chromium has no Web
-  Store. Install the script from `http://127.0.0.1:8787/patreon.user.js`. Keep
-  the browser profile outside the repository.

@@ -2,13 +2,11 @@
 // would, and then times one refresh of the saved batch. Run it in a loop:
 //   for i in $(seq 1 15); do npx tsx bench/warmup.ts; done
 import { readFileSync } from "node:fs";
+import { FILES } from "./files";
 import { items, rank } from "../src/build";
 import { render } from "../src/page";
 import { SOURCES, type Story } from "../src/rank";
 
-const FILES: Record<string, string> = {
-  HN: "hn", Reddit: "reddit", SPIEGEL: "spiegel", "The Verge": "verge", Reuters: "reuters",
-};
 const dir = new URL("./bodies/", import.meta.url);
 const bodies = SOURCES.map((s) => readFileSync(new URL(`${FILES[s.name]}.xml`, dir), "utf8"));
 const at = Date.parse(readFileSync(new URL("fetched_at.txt", dir), "utf8").trim()) / 1000;

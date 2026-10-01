@@ -26,6 +26,13 @@ const LOC = /<loc>(.*?)<\/loc>/s;
 const NEWS_TITLE = /<news:title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/news:title>/s;
 const NEWS_DATE = /<news:publication_date>(.*?)<\/news:publication_date>/s;
 const RD_TARGET = /<span><a href="([^"]+)">\[link\]<\/a><\/span>/;
+// The same link in the escaped HTML of a Reddit entry. The rule reads it
+// there, because a decode of the whole content costs more than the rest of
+// the entry.
+const RD_ESCAPED =
+  /&lt;span&gt;&lt;a href=(?:"|&quot;)((?:(?!&quot;)[^"<])+)(?:"|&quot;)&gt;\[link\]&lt;\/a&gt;&lt;\/span&gt;/;
+// An image, a video, or a gallery on Reddit itself. The thread is the story.
+const RD_MEDIA = /^https?:\/\/([a-z]+\.)?(redd\.it|reddit\.com)\//i;
 const HN_ITEM = /href="(https:\/\/news\.ycombinator\.com\/item\?id=\d+)"/;
 
 /** Seconds since the epoch, or now when the text holds no date. */
@@ -56,30 +63,46 @@ function atomLink(block: string): string {
   return plain;
 }
 
-export function parseFeed(body: string, name: string): Story[] {
+/** The article that a Reddit entry links to, or null for a post on Reddit. */
+function redditTarget(block: string): string | null {
+  // The content is HTML inside XML, so an `&` in the address reads `&amp;amp;`.
+  const escaped = RD_ESCAPED.exec(block);
+  let target: string | null = null;
+  if (escaped) target = decode(decode(escaped[1], { level: "xml" }), { level: "html5" });
+  else {
+    const content = text(ENCODED, block) || text(CONTENT, block);
+    const hit = RD_TARGET.exec(content);
+    if (hit) target = decode(hit[1], { level: "html5" });
+  }
+  return target && !RD_MEDIA.test(target) ? target : null;
+}
+
+/** The items of an RSS or Atom feed. Only the first `limit` entries are read.
+ * The others still count for `n`, so the position keeps its meaning. */
+export function parseFeed(body: string, name: string, limit = Infinity): Story[] {
   const entries = [...body.matchAll(ENTRY)];
   const stories: Story[] = [];
   const n = entries.length;
-  entries.forEach(([, kind, block], pos) => {
-    const raw = text(DESCRIPTION, block) || text(SUMMARY, block);
-    const content = text(ENCODED, block) || text(CONTENT, block) || raw;
+  entries.slice(0, limit).forEach(([, kind, block], pos) => {
     const date = DATES.map((rule) => text(rule, block)).find(Boolean);
     const published = date ? parseDate(date) : now();
-    const points = POINTS.exec(raw);
-    const comments = COMMENTS.exec(raw);
     const title = text(TITLE, block);
     const url = (kind === "entry" ? atomLink(block) : text(LINK, block)).trim();
     if (!(title && url)) return;
     // Reddit and HN point at an article somewhere else. That address is
-    // what matches the same story on another source.
+    // what matches the same story on another source. Only HN gives points
+    // and comments, so only HN reads the description.
     let target: string | null = null;
     let discuss: string | null = null;
+    let points: RegExpExecArray | null = null;
+    let comments: RegExpExecArray | null = null;
     if (name === "Reddit") {
-      // The content is HTML, so an `&` in the address reads `&amp;`.
-      const hit = RD_TARGET.exec(content);
-      target = hit ? decode(hit[1], { level: "html5" }) : null;
+      target = redditTarget(block);
       discuss = url;
     } else if (name === "HN") {
+      const raw = text(DESCRIPTION, block) || text(SUMMARY, block);
+      points = POINTS.exec(raw);
+      comments = COMMENTS.exec(raw);
       target = url;
       discuss = HN_ITEM.exec(raw)?.[1] ?? null;
     }
@@ -92,10 +115,10 @@ export function parseFeed(body: string, name: string): Story[] {
   return stories;
 }
 
-export function parseSitemap(body: string, name: string): Story[] {
+export function parseSitemap(body: string, name: string, limit = Infinity): Story[] {
   const blocks = [...body.matchAll(URL_BLOCK)].map((m) => m[1]);
   const stories: Story[] = [];
-  blocks.forEach((block, pos) => {
+  blocks.slice(0, limit).forEach((block, pos) => {
     const loc = LOC.exec(block);
     const title = NEWS_TITLE.exec(block);
     const date = NEWS_DATE.exec(block);

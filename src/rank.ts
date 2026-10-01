@@ -28,6 +28,7 @@ export interface Source {
   prominence: Prominence;
   authority: number;
   home: string;
+  topic?: string; // the topic of every item, for a source that covers one field
 }
 
 export interface Story {
@@ -79,34 +80,62 @@ export const W_PROM = 2.2; // standing inside its own source
 export const W_CORR = 1.9; // independent sources on the same story
 export const W_TOPIC = 1.0; // topic fit
 export const W_PUB = 1.0; // publisher
-export const W_POL = 1.8; // cost for party politics, at full confidence
+export const W_FOCUS = 3.0; // design, photography, and the small web
+export const W_POL = 3.5; // cost for politics, at full confidence
 
 export const SOURCE_SPREAD = 0.45; // cost for each earlier row from the same source
 export const TOPIC_SPREAD = 0.28; // cost for each earlier row on the same topic
 export const MAX_SPREAD = 0.9; // the largest cost a mixed page may charge one row
 export const SOFT_FLOOR = 8; // soft news starts below this row, whatever it scores
 export const SOFT_TOPICS = new Set(["soft", "celebrity"]);
-export const POL_DROP = 0.6; // a row at this politics confidence or above leaves the list
+export const POL_DROP = 0.6; // a row at this politics confidence or above leaves the list,
+export const POL_MAJOR = 3; // unless this many sources carry it
 
 export const SOURCES: Source[] = [
   { name: "HN", url: "https://hnrss.org/frontpage", kind: "feed",
     max: 12, window: 30, prominence: "points", authority: 1.0,
     home: "https://news.ycombinator.com/" },
-  { name: "Reddit", url: "https://www.reddit.com/r/worldnews+technology+news/.rss",
-    kind: "feed", max: 12, window: 30, prominence: "position", authority: 0.8,
-    home: "https://www.reddit.com/r/worldnews+technology+news/" },
+  // One request for all subreddits. Reddit answers a third quick request
+  // with a 429, so a second Reddit source would put both at risk. Many posts
+  // are questions of the community, thus the authority is low.
+  { name: "Reddit",
+    url: "https://www.reddit.com/r/graphic_design+typography+photography+neocities+SmallWeb/.rss",
+    kind: "feed", max: 8, window: 15, prominence: "position", authority: 0.55,
+    home: "https://www.reddit.com/r/graphic_design+typography+photography+neocities+SmallWeb/" },
   { name: "SPIEGEL", url: "https://www.spiegel.de/schlagzeilen/tops/index.rss",
-    kind: "feed", max: 12, window: 30, prominence: "position", authority: 0.95,
+    kind: "feed", max: 10, window: 30, prominence: "position", authority: 0.95,
     home: "https://www.spiegel.de/" },
   // The feed order stands in for the homepage order. The homepage is 1 MB of
   // HTML, and a scrape of it costs more CPU than a Worker request may use.
   { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", kind: "feed",
-    max: 12, window: 30, prominence: "position", authority: 0.85,
+    max: 10, window: 30, prominence: "position", authority: 0.85,
     home: "https://www.theverge.com/" },
   { name: "Reuters",
     url: "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
-    kind: "sitemap", max: 12, window: 60, prominence: "flat", authority: 0.9,
+    kind: "sitemap", max: 10, window: 60, prominence: "flat", authority: 0.9,
     home: "https://www.reuters.com/" },
+  // The design and photography magazines publish in time order. No editor
+  // chose a top item, so each item starts flat, as a wire does.
+  { name: "Creative Review", url: "https://www.creativereview.co.uk/feed/", kind: "feed",
+    max: 4, window: 8, prominence: "flat", authority: 1.0, topic: "design",
+    home: "https://www.creativereview.co.uk/" },
+  { name: "Creative Boom", url: "https://www.creativeboom.com/feed/", kind: "feed",
+    max: 4, window: 8, prominence: "flat", authority: 0.9, topic: "design",
+    home: "https://www.creativeboom.com/" },
+  { name: "Abduzeedo", url: "https://abduzeedo.com/rss.xml", kind: "feed",
+    max: 4, window: 8, prominence: "flat", authority: 0.85, topic: "design",
+    home: "https://abduzeedo.com/" },
+  { name: "PetaPixel", url: "https://petapixel.com/feed/", kind: "feed",
+    max: 6, window: 10, prominence: "flat", authority: 1.0, topic: "photo",
+    home: "https://petapixel.com/" },
+  { name: "Fstoppers", url: "https://fstoppers.com/rss.xml", kind: "feed",
+    max: 4, window: 10, prominence: "flat", authority: 0.85, topic: "photo",
+    home: "https://fstoppers.com/" },
+  // The discover page of Bear Blog is in trending order, so the position is
+  // a signal of the readers.
+  { name: "Bear Blog", url: "https://bearblog.dev/discover/feed/", kind: "feed",
+    max: 6, window: 12, prominence: "position", authority: 0.85, topic: "smallweb",
+    home: "https://bearblog.dev/discover/" },
 ];
 
 export const AUTHORITY: Record<string, number> =
@@ -115,6 +144,8 @@ export const PROM_MODE: Record<string, Prominence> =
   Object.fromEntries(SOURCES.map((s) => [s.name, s.prominence]));
 export const HOMES: Record<string, string> =
   Object.fromEntries(SOURCES.map((s) => [s.name, s.home]));
+export const SOURCE_TOPIC: Record<string, string> =
+  Object.fromEntries(SOURCES.flatMap((s) => (s.topic ? [[s.name, s.topic]] : [])));
 
 // A source drops an item when the URL matches. Reuters mirrors its wire in
 // other languages and fills the sitemap with machine-written game recaps.
@@ -122,19 +153,43 @@ export const DROP: Record<string, RegExp> = {
   Reuters: re(String.raw`reuters\.com/(sports|lifestyle|fr|es|pt|de|it|ar|ja|ko|zh|cn|br)/`, "i"),
   SPIEGEL: re(String.raw`spiegel\.de/(sport|fussball|services|gutscheine|partnerschaften)/`, "i"),
   "The Verge": re(String.raw`theverge\.com/(deals|sponsored)/`, "i"),
+  Fstoppers: re(String.raw`fstoppers\.com/sponsored/`, "i"),
 };
 export const DROP_TITLE = words("liveblog|live-?ticker|live updates|newsblog|im liveticker");
 
-// The topic of a row. The first match wins. The user asked for world news,
-// tech, science, and German news, so those carry a boost and soft news a cost.
+// The fields that the reader opens wire for: graphic design, photography, and
+// the small web of Neocities and personal sites. A row in one of them gets
+// W_FOCUS, which outweighs about a day of age. Each field has an address rule
+// and a title rule. The title rule finds the field on a general source, such
+// as a typeface on HN or a camera on The Verge. A bare "photos" is not in the
+// rule: "satellite photos show" is war news.
+// A camera that watches a road or a door is not photography.
+const CAMERA = "(?<!(?:security|surveillance|traffic|speed|body|doorbell|dash|police|cctv)"
+  + "[\\s-])cameras?";
+export const FOCUS: [string, RegExp, RegExp][] = [
+  ["design", re(String.raw`reddit\.com/r/(graphic_design|typography)/`, "i"), words(
+    `graphic design${W}*|typefaces?|typograph${W}*|fonts?|lettering|logos?|wordmarks?`
+    + `|rebrand${W}*|brand identit(?:y|ies)|visual identit(?:y|ies)|posters?`
+    + `|illustrat(?:ion|ions|or|ors)|kerning|figma|photoshop|indesign|pantone`
+    + "|packaging design|editorial design|design studio")],
+  ["photo", re(String.raw`reddit\.com/r/photography/`, "i"), words(
+    `photograph${W}*|photojournal${W}*|${CAMERA}|lightroom|leica|fujifilm|hasselblad`
+    + "|nikon|mirrorless|dslr|kodak|ilford|darkroom|film photography")],
+  ["smallweb", re(String.raw`reddit\.com/r/(neocities|smallweb)/|neocities\.org`, "i"), words(
+    `neocities|geocities|indie ?web|small ?web|old web|webrings?|web ?1\.0`
+    + "|personal (?:web)?sites?|blogrolls?|guestbooks?|88x31|bear ?blog")],
+];
+
+// The topic of a row outside the focus fields. The first match wins. World
+// news, tech, science, and German news carry a small boost, and soft news a
+// cost.
 export const TOPICS: [string, RegExp, number][] = [
   ["germany", re(String.raw`spiegel\.de/(politik/deutschland|wirtschaft)/`), 0.35],
-  ["world", re(String.raw`reuters\.com/(world|legal)/|spiegel\.de/ausland/`
-    + String.raw`|reddit\.com/r/(worldnews|news)/`), 0.35],
+  ["world", re(String.raw`reuters\.com/(world|legal)/|spiegel\.de/ausland/`), 0.35],
   ["science", re(String.raw`(arxiv\.org|nature\.com|science\.org|\.edu/)`
     + String.raw`|theverge\.com/science/`), 0.35],
-  ["tech", re(String.raw`reddit\.com/r/technology/|theverge\.com/`
-    + String.raw`(tech|ai-artificial-intelligence|cyber-security)/`), 0.35],
+  ["tech", re(String.raw`theverge\.com/(tech|ai-artificial-intelligence|cyber-security)/`),
+    0.35],
   ["business", re(String.raw`reuters\.com/(business|markets|technology)/`), 0.35],
   ["celebrity", re(String.raw`spiegel\.de/panorama/leute/|/celebrity/`), -2.5],
   ["soft", re(String.raw`spiegel\.de/(familie|stil|reise|gesundheit|auto|panorama`
@@ -151,43 +206,58 @@ export const SOFT_SLUG = re(
   "/[^/]*(podcast|music|movie|film|tv-show|streaming-guide|trailer|recap"
   + "|best-deals|gift-guide|review-roundup|horoscope)[^/]*/?$", "i");
 
-// Party politics: an election, a parliament, a minister, a campaign. An act of
-// government is not party politics. A court ruling, a chip export rule, and a
-// privacy law stay on the page, because they are why a reader opens wire.
+// Politics. Party politics is decisive: an election, a party, a coalition, a
+// campaign. An act of government is weak: a minister, a sanction, a tariff.
+// The reader wants little of either, so a weak word costs the row, and a
+// decisive word removes it unless POL_MAJOR sources carry the story.
 // A section cannot decide alone. SPIEGEL files a coalition crisis and a pension
-// debate under one politik/ path, and Reddit files both under r/worldnews. So
-// the score reads the section and the title, and returns a confidence.
+// debate under one politik/ path. So the score reads the section and the
+// title, and returns a confidence.
 export const POL_SECTION = re(String.raw`spiegel\.de/politik/`, "i");
 // One of these words settles the row on its own. German builds a compound for
 // each of them, thus no list of whole words can hold them: one live batch gave
 // Parlamentswahl and Kremlpartei, and both scored zero against such a list. The
 // two German rules read the stem and name the exceptions. "Auswahl" is a
-// selection and "wahlweise" means optionally. Neither is a vote.
+// selection and "wahlweise" means optionally. Neither is a vote. The name of
+// a party is decisive too. "Labour" alone is the work market, and "Linke" and
+// "Grüne" are a side and a color, so those names stay out.
 export const POL_STRONG = words(
   "elections?|electoral|re-?elections?|ballots?|referendums?|primaries"
   + `|caucus|midterms?|runoffs?|impeach${W}*|gerrymander${W}*|no-confidence`
   + `|(?!aus|vor|an)${W}*wahl(?!weise)${W}*|${W}*partei${W}*|koalition${W}*`
-  + "|misstrauensvotum");
+  + "|misstrauensvotum|afd|cdu|csu|spd|fdp|bsw|gop|democrats|republicans|tory|tories"
+  + "|labour party");
 // These words also fit plain government news, so one of them is not enough.
-// "Lawmakers press a chip maker" must stay. "Lawmakers before the runoff" goes.
+// "Lawmakers press a chip maker" stays and pays. "Lawmakers before the runoff"
+// goes.
 export const POL_WEAK = words(
-  "candidates?|incumbents?|constituency|senators?|governor|lawmakers?"
-  + `|parliament${W}*|coalition|cabinet|reshuffle|minister${W}*|chancellor`
-  + `|presidential|bundestag|bundesrat|landtag|kanzler${W}*`
-  + `|regierung${W}*|abgeordnete${W}*|fraktion${W}*`);
+  `candidates?|incumbents?|constituency|senators?|senate|congress${W}*|governor`
+  + `|lawmakers?|parliament${W}*|coalition|cabinet|reshuffle|minister${W}*`
+  + `|chancellor|president|presidential|government|white house|kremlin`
+  + `|diplomat${W}*|sanctions?|tariffs?|bundestag|bundesrat|landtag|kanzler${W}*`
+  + `|regierung${W}*|abgeordnete${W}*|fraktion${W}*|sanktion${W}*|zölle|zoll`);
 
-// A name that the reader never wants to read. A match sets the confidence to 1,
-// thus the row always leaves the list, whatever the story tells. This is a
-// reader rule and not a measurement. It removes an act of government too, and
-// that is the point of it. Keep it apart from POL_NAMES: a name here obeys no
-// tier and no threshold, so the two lists must not hold the same name.
-// The rule reads the headline and the address. It must not read the noun: a
-// trump card is a card, and "security trumps speed" is a verb.
-export const POL_ALWAYS = re(`${START}trump(?:ism|ists?)?${END}(?!\\s+card)`, "i");
+// The MAGA movement: its names, its slogans, its groups, and its media. The
+// reader never wants to read them. A match sets the confidence to 1, thus the
+// row always leaves the list, whatever the story tells. This is a reader rule
+// and not a measurement. It removes an act of government too, and that is the
+// point of it. Keep it apart from POL_NAMES: a name here obeys no tier and no
+// threshold, so the two lists must not hold the same name.
+// The rule reads the headline and the address. It must not read a common
+// word: a trump card is a card, "security trumps speed" is a verb, a turning
+// point is a moment, and Ashlee Vance is a tech journalist. A short surname
+// that many people share, such as Miller or Kirk, needs the first name.
+export const POL_ALWAYS = re(`${START}(?:trump(?:ism|ists?|ian)?(?!\\s+card)`
+  + "|maga|make america great again|america first|truth social|project 2025"
+  + "|heritage foundation|stop the steal|qanon|proud boys|oath keepers|groypers?"
+  + "|bannon|hegseth|(?<!ashlee\\s)vance|stephen miller|kash patel"
+  + "|marjorie taylor greene|charlie kirk|turning point (?:usa|action)"
+  + "|tucker carlson|loomer|boebert|gaetz|mike lindell|mypillow|infowars"
+  + `|alex jones|breitbart|newsmax|nick fuentes|kari lake)${END}`, "i");
 
-// The 24 politicians that the sources of wire name most. A name is a weak word
-// on purpose. "Trump sanctions the court" is an act of government and stays.
-// "Trump before the midterms" is a campaign and goes, because the name and the
+// The 22 politicians that the sources of wire name most. A name is a weak word
+// on purpose. "Merz sanctions the court" is an act of government and stays.
+// "Merz before the election" is a campaign and goes, because the name and the
 // decisive word reach POL_DROP together. A name is also the one part of this
 // file with a shelf life: review the list after an election. A surname that is
 // also a common word, such as Tusk, costs little, because one weak word alone
@@ -198,7 +268,7 @@ export const POL_ALWAYS = re(`${START}trump(?:ism|ists?)?${END}(?!\\s+card)`, "i
 // writes Söder and a wire writes Soeder.
 export const POL_NAMES = words(
   "merz|weidel|klingbeil|s(?:ö|oe|o)der|pistorius|scholz"
-  + "|vance|rubio|hegseth|newsom"
+  + "|rubio|newsom"
   + "|macron|starmer|meloni|leyen|orb(?:a|á)n|tusk|s(?:a|á)nchez"
   + "|putin|selenskyj|zelensk(?:y|iy|yy)|netan(?:j|y)ahu|modi|jinping"
   + "|erdo(?:g|ğ)an|milei");
@@ -219,6 +289,9 @@ export const CLICKBAIT = re(
 export const TRACKING = re(
   `^(utm_${W}*|at_${W}*|fbclid|gclid|mc_${W}*|igshid|cmpid|ito|smid|icid`
   + "|ref|ref_src|referrer|share_id|taid)$", "i");
+// The last two lines are the stock words of the design and photography
+// magazines. "Brand Identity: X by Y" heads many unrelated posts, and two of
+// them would join on those two words.
 export const STOP = new Set(`
 the a an and or of to in on for with from by at as is are was were be been it
 its this that these those has have had will would can could not new says say
@@ -226,6 +299,8 @@ said after over into out up down more most than then when what who how why
 der die das und oder von zu in im auf fur mit aus bei ist sind war waren wird
 werden hat haben nach uber ein eine einen einem einer des dem den als am um so
 sich nicht auch noch schon nur wie was wer wo mehr gegen vor beim zum zur
+design designs brand branding identity visual typeface studio photo photos
+photography photographer photographers camera cameras
 `.split(/\s+/).filter(Boolean));
 
 export function age(ts: number, at = now()): string {
@@ -365,8 +440,8 @@ function mass(bag: Iterable<string>, weight: Map<string, number>): number {
 
 /** Shared weight over the smaller title. A word that is rare in this batch
  * counts most, so a shared name beats a shared common word. */
-export function similar(a: Set<string>, b: Set<string>, weight: Map<string, number>): number {
-  const both = shared(a, b);
+export function similar(a: Set<string>, b: Set<string>, weight: Map<string, number>,
+                        both = shared(a, b)): number {
   if (both.length < 2) return 0.0;
   const floor = Math.min(mass(a, weight), mass(b, weight)) || 1.0;
   return mass(both, weight) / floor;
@@ -377,9 +452,9 @@ export function similar(a: Set<string>, b: Set<string>, weight: Map<string, numb
  * close publication time. */
 export function sameStory(a: Set<string>, b: Set<string>, ta: number, tb: number,
                           weight: Map<string, number>): boolean {
-  const count = shared(a, b).length;
-  if (count < 2 || similar(a, b, weight) < SIM_MIN) return false;
-  return count >= 3 || Math.abs(ta - tb) <= PAIR_WINDOW;
+  const both = shared(a, b);
+  if (both.length < 2 || similar(a, b, weight, both) < SIM_MIN) return false;
+  return both.length >= 3 || Math.abs(ta - tb) <= PAIR_WINDOW;
 }
 
 /** Group the items that tell the same story. Two items join on the same
@@ -399,6 +474,17 @@ export function cluster(stories: Story[]): Row[] {
   const bags = groups.map((g) => tokens(g[0].title));
   const when = groups.map((g) => Math.min(...g.map((s) => s.published)));
   const weight = idf(bags);
+  // The groups that hold each word. sameStory() needs two shared words, so
+  // a count from this index skips the pairs that cannot join. A pass over
+  // all pairs cost more CPU than the rest of the ranking.
+  const holders = new Map<string, number[]>();
+  bags.forEach((bag, i) => {
+    for (const t of bag) {
+      const list = holders.get(t);
+      if (list) list.push(i);
+      else holders.set(t, [i]);
+    }
+  });
   const merged = new Set<number>();
   const out: Story[][] = [];
   groups.forEach((g, i) => {
@@ -406,11 +492,21 @@ export function cluster(stories: Story[]): Row[] {
     const members = [...g];
     const bag = new Set(bags[i]);
     const at = when[i];
+    const common = new Int32Array(groups.length);
+    const count = (t: string, after: number) => {
+      for (const k of holders.get(t)!) if (k > after) common[k]++;
+    };
+    for (const t of bag) count(t, i);
     for (let j = i + 1; j < groups.length; j++) {
-      if (merged.has(j) || !sameStory(bag, bags[j], at, when[j], weight)) continue;
+      if (common[j] < 2 || merged.has(j)) continue;
+      if (!sameStory(bag, bags[j], at, when[j], weight)) continue;
       merged.add(j);
       members.push(...groups[j]);
-      for (const t of bags[j]) bag.add(t);
+      for (const t of bags[j]) {
+        if (bag.has(t)) continue;
+        bag.add(t);
+        count(t, j);
+      }
     }
     out.push(members);
   });
@@ -438,6 +534,11 @@ export function summarise(members: Story[]): Row {
 
 export function topic(c: Row): [string, number] {
   const text = c.origin + " " + c.url;
+  for (const [name, where] of FOCUS) if (where.test(text)) return [name, W_FOCUS];
+  // A row from a focus source keeps that field, even when a wire gives the
+  // headline.
+  for (const s of c.sources) if (SOURCE_TOPIC[s]) return [SOURCE_TOPIC[s], W_FOCUS];
+  for (const [name, , what] of FOCUS) if (what.test(c.title)) return [name, W_FOCUS];
   for (const [name, rule, w] of TOPICS) if (rule.test(text)) return [name, w];
   if (SOFT_SLUG.test(text)) return ["soft", -1.8];
   if (TECH_WORDS.test(c.title)) return ["tech", 0.35];
@@ -447,12 +548,13 @@ export function topic(c: Row): [string, number] {
   return ["other", 0.0];
 }
 
-/** How sure wire is that the row is party politics, from 0 to 1. The
- * section gives 0.4, one decisive word gives 0.6, and each weak word gives
- * 0.25. A weak word is a word that also fits plain government news, or the
- * name of a politician. A row at POL_DROP or above leaves the list. A row
- * below it stays and pays W_POL for the part it scores. A name in
- * POL_ALWAYS skips the count and takes the row off the page. */
+/** How sure wire is that the row is politics, from 0 to 1. The section
+ * gives 0.4, one decisive word gives 0.6, and each weak word gives 0.25. A
+ * weak word is a word that also fits plain government news, or the name of a
+ * politician. A row at POL_DROP or above leaves the list, unless POL_MAJOR
+ * sources carry it. Every political row that stays pays W_POL for the part
+ * it scores. A match of POL_ALWAYS skips the count and takes the row off the
+ * page. */
 // The Python findall(). The g flag makes test() keep a position between two
 // calls, thus the exported rules stay without it, and these copies carry it.
 const POL_WEAK_ALL = new RegExp(POL_WEAK, "giu");
@@ -463,8 +565,11 @@ function findall(rule: RegExp, text: string, into: Set<string>) {
   for (let m = rule.exec(text); m; m = rule.exec(text)) into.add(m[0].toLowerCase());
 }
 
+/** True for a row that names the MAGA movement. */
+export const banned = (c: Row) => POL_ALWAYS.test(c.title + " " + c.url);
+
 export function political(c: Row): number {
-  if (POL_ALWAYS.test(c.title + " " + c.url)) return 1.0;
+  if (banned(c)) return 1.0;
   let pol = POL_SECTION.test(c.origin + " " + c.url) ? 0.4 : 0.0;
   if (POL_STRONG.test(c.title)) pol += 0.6;
   const weak = new Set<string>();
@@ -492,14 +597,23 @@ export function score(c: Row, at = now()): number {
     - GRAVITY * Math.log2(hours + AGE_FLOOR));
 }
 
+/** Political rows drop out of the list. A party-political story stays only
+ * when POL_MAJOR sources carry it: news that the mainstream knows. A match
+ * of POL_ALWAYS never stays. */
+export function allowed(c: Row): boolean {
+  if (c.pol! < POL_DROP) return true;
+  return c.sources.length >= POL_MAJOR && !banned(c);
+}
+
 /** Take the best row, then make the next row of the same source or topic
  * cost more. The page stays mixed instead of one source in a block. A row
- * that reads as party politics does not reach the page at all. */
+ * that reads as party politics does not reach the page, unless it is major
+ * news. */
 export function select(clusters: Row[], n: number): Row[] {
-  // The drop sits here and not in keep(). keep() reads one item, and all five
-  // sources carry politics, thus a drop there removes one copy and cluster()
-  // then builds the same row again from the other four.
-  const pool = clusters.filter((c) => c.pol! < POL_DROP)
+  // The drop sits here and not in keep(). keep() reads one item, and the news
+  // sources all carry politics, thus a drop there removes one copy and
+  // cluster() then builds the same row again from the others.
+  const pool = clusters.filter(allowed)
     .sort((a, b) => b.score! - a.score!);
   const picked: Row[] = [];
   const usedSrc = new Map<string, number>();

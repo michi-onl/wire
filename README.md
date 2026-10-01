@@ -1,7 +1,8 @@
 # wire
 
-wire reads the front pages of some news sites. It puts the stories in one
-list. It puts the story that most sources carry at the top.
+wire reads the front pages of some news sites and of some design,
+photography, and small-web sites. It puts the stories in one list. Graphic
+design, photography, and the Neocities world come first. Politics comes last.
 
 wire keeps no database and no profile. It stores no votes and no comments.
 The list refreshes every five minutes.
@@ -18,9 +19,9 @@ line at the top.
 
 ## How wire picks the order
 
-wire reads five front pages, so it knows one thing that no single site knows:
-which story several independent editors chose at the same time. That is the
-main signal.
+wire reads eleven sources, so it knows one thing that no single site knows:
+which story several independent editors chose at the same time. That is one
+signal. The field of the story is the other.
 
 - **Agreement.** wire joins the items that tell one story, then counts the
   sources. A row with `2 sources` beats a lone report. One story fills one
@@ -29,16 +30,23 @@ main signal.
   the points on Hacker News.
 - **Age.** An old story goes down the list. A fresh story does not win on age
   alone, because a news wire republishes an item and the clock restarts.
-- **Topic.** World news, technology, science, and German news come first.
-  Culture and celebrity stay below the first rows. Sport does not appear.
-- **Party politics.** An election, a party, a coalition, or a campaign does
-  not appear. An act of government stays: a court ruling, an export rule, a
-  privacy law, or a meeting between two heads of state. wire reads the
-  headline, the section, and the names of 25 politicians. A name alone does
-  not remove a story, because the same person signs the law that is news. A
-  name with a campaign word does. One name is an exception: a story that
-  names Donald Trump never appears, whatever it tells. A political story
-  under a neutral headline can still reach the page.
+- **Focus.** Graphic design, photography, and the small web of Neocities and
+  personal sites get a large boost. A story from a design or photography
+  magazine, from Bear Blog, or from a design, photography, or Neocities
+  subreddit is in focus. A story from another source is in focus when its
+  headline names the field, for example a typeface, a camera, or a webring.
+- **Topic.** After the focus fields, world news, technology, science, and
+  German news get a small boost. Culture and celebrity stay below the first
+  rows. Sport does not appear.
+- **Politics.** Politics goes down the list. A word of plain government news,
+  such as a minister, a sanction, or a tariff, costs a story much of its
+  place. An election, a party, a coalition, or a campaign removes the story,
+  unless three sources carry it. That is news that the mainstream knows. A
+  political story under a neutral headline can still reach the page.
+- **MAGA.** A story that names the MAGA movement never appears, whatever it
+  tells and however many sources carry it. wire reads the headline and the
+  address for its names, slogans, groups, and media, for example Trump,
+  Vance, Hegseth, Truth Social, and Project 2025.
 - **A mixed page.** After wire picks a row, the next row from the same source
   or the same topic costs more. One source cannot take the whole page.
 
@@ -49,31 +57,26 @@ a second account or open the Hacker News comments.
 
 ## Sources
 
-| Source      | Notes                                                    |
-| ----------- | -------------------------------------------------------- |
-| Hacker News | Points and comments. Links to the article                |
-| Reddit      | Hot order. World news, technology, and news              |
-| SPIEGEL     | German. Editorial top list                               |
-| The Verge   | Feed order. The newest item comes first                  |
-| Reuters     | A wire in publication order. No editor ranks it          |
+| Source          | Notes                                                        |
+| --------------- | ------------------------------------------------------------ |
+| Hacker News     | Points and comments. Links to the article                    |
+| Reddit          | Hot order. Graphic design, typography, photography, Neocities, and the small web |
+| SPIEGEL         | German. Editorial top list                                   |
+| The Verge       | Feed order. The newest item comes first                      |
+| Reuters         | A wire in publication order. No editor ranks it              |
+| Creative Review | Graphic design and branding                                  |
+| Creative Boom   | Graphic design, illustration, and branding                   |
+| Abduzeedo       | Graphic design, type, and packaging                          |
+| PetaPixel       | Photography news                                             |
+| Fstoppers       | Photography gear and technique                               |
+| Bear Blog       | Trending posts of the small web                              |
 
-Reuters publishes in time order, so no item there starts at the top. A Reuters
-story reaches the top when another source carries it too. The Verge feed is in
-time order too. Its first item is its newest item, and not always its most
-important one.
+Reuters and the design and photography magazines publish in time order, so no
+item there starts at the top. The Verge feed is in time order too. Its first
+item is its newest item, and not always its most important one.
 
-## Patreon posts (optional)
-
-A userscript shows the Patreon posts of your memberships. The posts stay on
-your device. The wire server does not see them.
-
-1. Install <https://wire.michi.onl/patreon.user.js>.
-2. Sign in to patreon.com.
-3. Click **Sync to wire**.
-4. Open wire. A `patreon — this device` block shows the posts.
-
-The script needs an open patreon.com tab. The first sync asks for your account
-name, and each browser keeps its own list.
+No Neocities feed carries daily news. The Neocities blog posts about once a
+year. r/neocities and Bear Blog are the closest daily sources.
 
 ## Install as a webapp
 

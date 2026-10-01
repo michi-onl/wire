@@ -6,8 +6,7 @@ import { cluster, keep, score, select, SHOWN, type Row, type Source, type Story 
  * filter empties a noisy source. */
 export function items(src: Source, body: string, at: number): Story[] {
   const parse = src.kind === "sitemap" ? parseSitemap : parseFeed;
-  return parse(body, src.name).slice(0, src.window)
-    .filter((s) => keep(s, at)).slice(0, src.max);
+  return parse(body, src.name, src.window).filter((s) => keep(s, at)).slice(0, src.max);
 }
 
 /** The rows of the page, in order, from the items of all sources. */

@@ -27,15 +27,22 @@ default and hides the refresh link until you set the variable.
 
 ## Sources
 
-| Source      | Endpoint                                                     | Kind    | Prominence |
-| ----------- | ------------------------------------------------------------ | ------- | ---------- |
-| Hacker News | `hnrss.org/frontpage`                                        | feed    | points     |
-| Reddit      | `reddit.com/r/worldnews+technology+news/.rss`                | feed    | position   |
-| SPIEGEL     | `spiegel.de/schlagzeilen/tops/index.rss`                     | feed    | position   |
-| The Verge   | `theverge.com/rss/index.xml`                                 | feed    | position   |
-| Reuters     | `reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml` | sitemap | flat       |
+| Source          | Endpoint                                                     | Kind    | Prominence | Topic    |
+| --------------- | ------------------------------------------------------------ | ------- | ---------- | -------- |
+| Hacker News     | `hnrss.org/frontpage`                                        | feed    | points     |          |
+| Reddit          | `reddit.com/r/graphic_design+typography+photography+neocities+SmallWeb/.rss` | feed | position | by subreddit |
+| SPIEGEL         | `spiegel.de/schlagzeilen/tops/index.rss`                     | feed    | position   |          |
+| The Verge       | `theverge.com/rss/index.xml`                                 | feed    | position   |          |
+| Reuters         | `reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml` | sitemap | flat       |          |
+| Creative Review | `creativereview.co.uk/feed/`                                 | feed    | flat       | design   |
+| Creative Boom   | `creativeboom.com/feed/`                                     | feed    | flat       | design   |
+| Abduzeedo       | `abduzeedo.com/rss.xml`                                      | feed    | flat       | design   |
+| PetaPixel       | `petapixel.com/feed/`                                        | feed    | flat       | photo    |
+| Fstoppers       | `fstoppers.com/rss.xml`                                      | feed    | flat       | photo    |
+| Bear Blog       | `bearblog.dev/discover/feed/`                                | feed    | position   | smallweb |
 
-Reddit rate-limits its feed. wire retries it after a 429 and waits for the
+Reddit rate-limits its feed. It answers a third quick request with a 429, so
+wire makes one Reddit request for all subreddits. wire retries it after a 429 and waits for the
 time in `x-ratelimit-reset`. If Reddit asks for more than 10 seconds, wire
 does not wait, and the source fails for this refresh.
 
@@ -58,7 +65,7 @@ it within its CPU limit.
 | `src/build.ts`     | The path from the bodies of the sources to the rows           |
 | `src/page.tsx`     | The page, the CSS, and the webapp manifest, in Hono JSX       |
 | `src/warm.ts`      | One run of the full path on a tiny batch, before the first request |
-| `static/`          | The icons and the userscript. Cloudflare serves them as files |
+| `static/`          | The icons. Cloudflare serves them as files                    |
 
 ## Ranking
 
@@ -74,7 +81,7 @@ weight as "how many hours of age it cancels".
 | ------------- | -------- | ------------------------------------------------- |
 | Prominence    | `W_PROM` | `prominence()` × the `authority` of the source    |
 | Agreement     | `W_CORR` | `log2(1 + sources on the story)`                  |
-| Topic         | `W_TOPIC`| the `TOPICS` table                                |
+| Topic         | `W_TOPIC`| `W_FOCUS` for a focus field, else the `TOPICS` table |
 | Publisher     | `W_PUB`  | `PUB_GOOD`, `PUB_POOR`, and `CLICKBAIT`           |
 | Politics      | `W_POL`  | `political()`                                     |
 | Age           | `GRAVITY`| `- GRAVITY * log2(age_hours + AGE_FLOOR)`         |
@@ -84,9 +91,17 @@ a low floor puts every trivial five-minute item at the top. With the floor,
 agreement from a second source outweighs about three hours of age.
 
 `prominence()` gives 0 to 1 for the standing of an item on its own front page.
-HN uses the points. Reddit, SPIEGEL, and The Verge use the position. Reuters
-publishes in time order, so no editor ranked it and every item gets a flat
-0.32.
+HN uses the points. Reddit, SPIEGEL, The Verge, and Bear Blog use the
+position. Reuters and the magazines publish in time order, so no editor
+ranked them and every item gets a flat 0.32.
+
+### Focus
+
+`FOCUS` holds three fields: `design`, `photo`, and `smallweb`. `topic()` finds
+the field in this order: the address, such as `reddit.com/r/neocities/`, then
+the `topic` of a source of the row, then a word of the headline, such as
+`typeface`, `camera`, or `webring`. A row in a field gets `W_FOCUS`, 3 bits.
+That outweighs about a day of age.
 
 ### Clustering
 
@@ -117,7 +132,9 @@ of its source, a live blog, and anything older than `MAX_AGE`. This removes
 Reuters sport and its translated wires, SPIEGEL sport, and an evergreen
 service page that a top list sometimes holds.
 
-`select()` drops a row of party politics. `political()` gives the confidence.
+`select()` drops a row of party politics, unless `POL_MAJOR` sources carry
+it. `political()` gives the confidence, and `score()` charges `W_POL` for it.
+A match of `POL_ALWAYS`, the MAGA list, never stays.
 
 ### What wire remembers
 
@@ -135,7 +152,8 @@ runs at most once in five minutes, so it usually runs in a new Worker, where
 V8 compiles each function and each regex on the first call.
 
 `bench/` measures the path in Node, over bodies that you save from the live
-sources into `bench/bodies/`. Git ignores that directory.
+sources into `bench/bodies/`. Git ignores that directory. `bench/files.ts`
+names the file of each source.
 
 ```sh
 npx tsx bench/bench.ts            # warm: the median of 200 runs
@@ -144,8 +162,8 @@ npx tsx bench/warmup.ts           # one run after src/warm.ts, as in a new Worke
 npx tsx bench/curve.ts            # refresh 1 to 12 in one process
 ```
 
-On a laptop, a refresh after the warm-up costs about 7 ms, and a warm refresh
-costs about 4 ms. Inside a Worker, `performance.now()` does not advance during
+On a laptop, a refresh after the warm-up costs about 10 ms, and a warm refresh
+costs about 3 ms. Inside a Worker, `performance.now()` does not advance during
 CPU work, so the only real value is the CPU time metric in the Cloudflare
 dashboard.
 
@@ -177,19 +195,10 @@ of the Worker holds the page. Use a custom domain.
 ```sh
 npm test
 npm run check
-curl -sS http://127.0.0.1:8787/patreon.user.js
 ```
 
-`npm test` runs the ranking tests and the mock check-in test. No test makes a
-network request. The ranking tests cover the address cleaner, the filters,
+`npm test` runs the ranking tests. No test makes a network request. The tests
+cover the address cleaner, the filters, the focus fields, the politics rules,
 the clustering rules, the order, the Unicode word rules, and the reader.
 
-The mock check-in test mocks `/api/current_user` and `/api/posts`, tests the
-caps and the account gate, and sends no request to patreon.com.
-
-`npm run check` checks the types and the syntax of the userscript. The `curl`
-command needs `npx wrangler dev`. Cloudflare serves the file from `static/`.
-
-A live test needs Firefox with Tampermonkey. Chromium browsers need a script
-manager. Install the script from `http://127.0.0.1:8787/patreon.user.js`. Keep
-the browser profile outside the repository.
+`npm run check` checks the types of the Worker and of the bench.
