@@ -236,6 +236,22 @@ export function age(ts: number, at = now()): string {
   return "just now";
 }
 
+/** The time of day in Berlin, as HH:MM. Central European Summer Time runs
+ * from the last Sunday of March to the last Sunday of October, at 01:00 UTC.
+ * Intl would do this too, but its first call costs CPU that a Worker lacks. */
+export function wall(ms: number): string {
+  const d = new Date(ms);
+  const y = d.getUTCFullYear();
+  const lastSunday = (month: number) => {
+    const end = new Date(Date.UTC(y, month + 1, 0, 1));
+    return end.getTime() - end.getUTCDay() * 86_400_000;
+  };
+  const summer = ms >= lastSunday(2) && ms < lastSunday(9);
+  const local = new Date(ms + (summer ? 2 : 1) * 3_600_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
+}
+
 /** One address for one article, so two sources can match. */
 export function canonical(url: string): string {
   let s: URL;
