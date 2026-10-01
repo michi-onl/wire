@@ -54,11 +54,13 @@ a second account or open the Hacker News comments.
 | Hacker News | Points and comments. Links to the article                |
 | Reddit      | Hot order. World news, technology, and news              |
 | SPIEGEL     | German. Editorial top list                               |
-| The Verge   | Homepage order                                           |
+| The Verge   | Feed order. The newest item comes first                  |
 | Reuters     | A wire in publication order. No editor ranks it          |
 
 Reuters publishes in time order, so no item there starts at the top. A Reuters
-story reaches the top when another source carries it too.
+story reaches the top when another source carries it too. The Verge feed is in
+time order too. Its first item is its newest item, and not always its most
+important one.
 
 ## Patreon posts (optional)
 
@@ -79,7 +81,7 @@ You can add wire to your home screen. The icons live in `static/`.
 
 ## Run it yourself
 
-See [SELFHOST.md](SELFHOST.md).
+wire is a Cloudflare Worker. See [SELFHOST.md](SELFHOST.md).
 
 ## License
 

@@ -32,8 +32,27 @@ constant.
   carry one election. The filter thus removes rows with a high `W_CORR` term,
   and single-source rows take their place. Watch the source mix of the head of
   the page after a change to `POL_DROP`.
-- The Verge scrape returns fewer items than its cap when the homepage layout
-  changes. A failure there is silent: the source simply gets smaller.
+- The Verge feed is in time order, so its position is not an editor signal.
+  The feed also carries deals posts under `/gadgets/`, which `DROP` does not
+  catch. On 2026-10-01 a Prime Day deals post reached row 2.
+- A source that answers with a page that is not a feed gives zero items and no
+  error. The source simply gets smaller. Count the items and show a line for
+  an empty source.
+
+## CPU
+
+- The CPU margin is thin. On a laptop, the first request after the warm-up
+  costs about 7 ms of the 10 ms that the free plan gives. Cloudflare servers
+  can be slower. Read the CPU time metric in the dashboard after the first
+  week, at the median and at the 99th percentile.
+- Confirm that Cloudflare does not count the CPU of the global scope as CPU
+  of the first request. `src/warm.ts` depends on it.
+- If the metric is too high, split the work: a cron trigger can build the page
+  and the route only reads it. The Cache API is local to one data center, so
+  that needs KV, and wire then keeps one stored page.
+- `W_SET` covers Latin, Greek, Cyrillic, kana, CJK, and Hangul. In another
+  script, a letter counts as a word edge. Add a block when a source starts to
+  carry such a script.
 
 ## Feature depth
 
