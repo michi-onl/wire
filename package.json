@@ -10,7 +10,6 @@
     "bench": "tsx bench/bench.ts"
   },
   "dependencies": {
-    "@rowanmanning/feed-parser": "^2.1.5",
     "hono": "^4.13.12",
     "html-entities": "^2.6.0"
   },
