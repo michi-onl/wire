@@ -1,5 +1,5 @@
 // Prints the ranked rows of the saved batch as JSON, for the parity check
-// with the Python version.
+// with the Python version. app.py is in the history before commit d5c5fba.
 import { readFileSync } from "node:fs";
 import { items, rank } from "../src/build";
 import { cluster, POL_DROP, score, SOURCES, type Story } from "../src/rank";

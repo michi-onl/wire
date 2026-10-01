@@ -265,7 +265,7 @@ export function canonical(url: string): string {
   if (host.startsWith("m.")) host = host.slice(2);
   if (host.endsWith(".amp")) host = host.slice(0, -4);
   const path = s.pathname.replace(/\/amp\/?$/, "").replace(/\/+$/, "") || "/";
-  // Python parse_qsl drops a key with a blank value, so this does too.
+  // The Python version dropped a key with a blank value, so this does too.
   const query = new URLSearchParams();
   for (const [k, v] of s.searchParams) {
     if (v && !TRACKING.test(k)) query.append(k, v);
@@ -330,7 +330,7 @@ const NOT_WORD = new RegExp(`[^${W_SET}\\s]`, "gu");
 export function tokens(title: string): Set<string> {
   const out = new Set<string>();
   for (const w of title.toLowerCase().replace(NOT_WORD, " ").split(/\s+/u)) {
-    // Python counts code points, and JS counts UTF-16 units.
+    // Count code points, as the Python version did, and not UTF-16 units.
     if (w.length > 2 && [...w].length > 2 && !STOP.has(w)) out.add(w);
   }
   return out;
@@ -453,10 +453,8 @@ export function topic(c: Row): [string, number] {
  * name of a politician. A row at POL_DROP or above leaves the list. A row
  * below it stays and pays W_POL for the part it scores. A name in
  * POL_ALWAYS skips the count and takes the row off the page. */
-// Python findall(). matchAll() would be shorter, but it clones the regex on
-// each call, and V8 then compiles the Unicode classes again for every row.
-// One global copy keeps one compiled program. The g flag makes test() keep a
-// position, thus the exported rules stay without it.
+// The Python findall(). The g flag makes test() keep a position between two
+// calls, thus the exported rules stay without it, and these copies carry it.
 const POL_WEAK_ALL = new RegExp(POL_WEAK, "giu");
 const POL_NAMES_ALL = new RegExp(POL_NAMES, "giu");
 
