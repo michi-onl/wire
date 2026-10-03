@@ -168,18 +168,22 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
   `memory` holds the page.
 - `app.get("/")` — shows the HN table. The header bar is sky-500. The column
   is sky-50. The page behind the column is white. The width is 85%.
-- `CSS` — a port of `news.ycombinator.com/news.css` with a different palette.
-  It keeps the selectors, the sizes, and the mobile block of HN. It drops the
-  rules for comments, forms, and the `.cNN` grey scale. wire has no such
-  elements. Each sky shade has one `:root` variable: `--sky-500` bar and footer
-  rule, `--sky-50` column, `--sky-950` titles and header text, `--sky-600`
-  muted meta, `--sky-300` vote arrow. No other code styles the page.
+- `CSS` — a copy of `news.ycombinator.com/news.css` with a different palette.
+  It keeps each rule of HN that reaches an element of wire, with the
+  selectors, the values, and the order of HN. It drops the rules for
+  comments, forms, the vote arrow, and the `.cNN` grey scale. wire has no such
+  elements. Each sky shade has one `:root` variable: `--sky-500` bar and
+  footer rule, `--sky-50` column, `--sky-950` titles and header text,
+  `--sky-600` muted meta. No other code styles the page.
+- The markup copies the HN markup. The body keeps the default margin of 8 px,
+  as on HN. The header logo is `static/favicon.svg` in an `img` with a white
+  border, as HN shows `y18.svg`.
 - Style the cells with a bare `td` selector. Do not use `#hnmain td`. An id
   makes the rule stronger than `.subtext` and `.title`. Those rules then fail,
   and the subtext keeps the 10pt size of the cell.
-- HN draws the vote arrow with `triangle.svg`. wire draws it with CSS borders.
-  An SVG file cannot read a CSS variable, thus the file would hold a second
-  copy of the arrow color.
+- wire has no vote arrow. The `votelinks` cell stays empty and keeps the
+  width of the HN arrow: 14 px, and 18 px in the mobile block. A title thus
+  starts where HN starts it. Do not remove the cell.
 - Only `.subtext a` and `.comhead a` get an underline on hover. This is the
   behavior of HN. Titles and header links get none.
 - The media query at 750 px is the mobile block of HN. It makes the table full

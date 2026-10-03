@@ -7,55 +7,53 @@ export const SKY_50 = "#f0f9ff";
 export const CSS = `
 :root {
   --sky-50:  #f0f9ff;
-  --sky-300: #7dd3fc;
   --sky-500: #0ea5e9;
   --sky-600: #0284c7;
   --sky-950: #082f49;
 }
-body { font-family: Verdana, Geneva, sans-serif; font-size: 10pt; color: var(--sky-600);
-       background: #fff; margin: 0; padding: 0; }
-td { font-family: Verdana, Geneva, sans-serif; font-size: 10pt; color: var(--sky-600); }
+body  { font-family:Verdana, Geneva, sans-serif; font-size:10pt; color:var(--sky-600); }
+td    { font-family:Verdana, Geneva, sans-serif; font-size:10pt; color:var(--sky-600); }
+
+a:link    { color:var(--sky-950); text-decoration:none; }
+a:visited { color:var(--sky-600); text-decoration:none; }
+
+.title   { font-family:Verdana, Geneva, sans-serif; font-size: 10pt; color:var(--sky-600); overflow:hidden; }
+.subtext { font-family:Verdana, Geneva, sans-serif; font-size:  7pt; color:var(--sky-600); }
+.yclinks { font-family:Verdana, Geneva, sans-serif; font-size:  8pt; color:var(--sky-600); }
+.pagetop { font-family:Verdana, Geneva, sans-serif; font-size: 10pt; color:var(--sky-950); line-height:12px; }
+.comhead { font-family:Verdana, Geneva, sans-serif; font-size:  8pt; color:var(--sky-600); }
+.hnname  { margin-left: 1px; margin-right: 5px; }
+
 #hnmain { width: 85%; min-width: 796px; margin: 0 auto; background: var(--sky-50); }
 
-a:link    { color: var(--sky-950); text-decoration: none; }
-a:visited { color: var(--sky-600); text-decoration: none; }
-
-.logo { width: 16px; height: 16px; border: 1px solid #fff; background: var(--sky-500);
-        color: #fff; text-align: center;
-        font: bold 12px/16px Verdana, Geneva, sans-serif; }
-.pagetop { font-size: 10pt; color: var(--sky-950); line-height: 12px; }
-.pagetop a:visited { color: var(--sky-950); }
-.hnname { margin-left: 1px; margin-right: 5px; }
-
-.title { font-size: 10pt; color: var(--sky-600); overflow: hidden; }
 .title a { word-break: break-word; }
 
-.subtext { font-size: 7pt; color: var(--sky-600); }
-.subtext a:link, .subtext a:visited { color: var(--sky-600); }
-.subtext a:hover { text-decoration: underline; }
+.pagetop a:visited { color:var(--sky-950); }
 
-.comhead { font-size: 8pt; color: var(--sky-600); }
-.comhead a:link, .comhead a:visited { color: var(--sky-600); }
-.comhead a:hover { text-decoration: underline; }
+.subtext a:link, .subtext a:visited { color:var(--sky-600); }
+.subtext a:hover { text-decoration:underline; }
 
-.yclinks { font-size: 8pt; color: var(--sky-600); }
-.votearrow { width: 0; height: 0; margin: 3px 2px 6px;
-             border-left: 5px solid transparent; border-right: 5px solid transparent;
-             border-bottom: 9px solid var(--sky-300); }
-.spacer { height: 5px; }
+.comhead a:link, .comhead a:visited { color:var(--sky-600); }
+.comhead a:hover { text-decoration:underline; }
+
+/* The width of the HN vote arrow: 10px and a margin of 2px on each side. */
+.votelinks { width: 14px; }
 .corro { font-weight: bold; color: var(--sky-950); }
 
 /* mobile device */
-@media only screen and (min-width: 300px) and (max-width: 750px) {
-  body { width: 100%; margin: 0; padding: 0; }
-  td { height: inherit !important; }
+@media only screen
+and (min-width : 300px)
+and (max-width : 750px) {
   #hnmain { width: 100%; min-width: 0; }
+  body { padding: 0; margin: 0; width: 100%; -webkit-text-size-adjust: none; }
+  td { height: inherit !important; }
+  .title { font-size: inherit; }
   span.pagetop { display: block; margin: 3px 5px; font-size: 12px; line-height: normal; }
   span.pagetop b { display: block; font-size: 15px; }
   .title { font-size: 11pt; line-height: 14pt; }
   .subtext { font-size: 9pt; }
-  .votearrow { transform: scale(1.3, 1.3); margin-right: 6px; }
-  .votelinks { min-width: 18px; }
+  .itemlist { padding-right: 5px; }
+  .votelinks { width: 18px; }
 }
 `;
 
@@ -109,8 +107,8 @@ const StoryRow = ({ c, at }: { c: Row; at: number }) => (
   <>
     <tr class="athing">
       <td align="right" valign="top" class="title"><span class="rank">{c.rank}.</span></td>
-      <td valign="top" class="votelinks" style="text-align:center"><div class="votearrow"></div></td>
-      <td valign="top" class="title">
+      <td valign="top" class="votelinks"></td>
+      <td class="title">
         <span class="titleline">
           <a href={c.url}>{c.title}</a>
           <span class="sitebit comhead"> (<a href={c.url}><span class="sitestr">{c.publisher}</span></a>)</span>
@@ -161,7 +159,9 @@ export function render(p: PageData): string {
               <table width="100%" cellspacing={0} cellpadding={0} border={0} style="padding:2px">
                 <tr>
                   <td style="width:18px;padding-right:4px">
-                    <a href="/"><div class="logo">W</div></a>
+                    <a href="/">
+                      <img src="/favicon.svg" width={18} height={18} style="border:1px white solid;display:block" />
+                    </a>
                   </td>
                   <td style="line-height:12pt;height:10px">
                     <span class="pagetop"><b class="hnname"><a href="/">wire</a></b>{nav()}</span>
@@ -185,7 +185,7 @@ export function render(p: PageData): string {
           ) : <tr></tr>}
           <tr>
             <td>
-              <table cellspacing={0} cellpadding={0} border={0} width="100%">
+              <table cellspacing={0} cellpadding={0} border={0} width="100%" class="itemlist">
                 {p.rows.map((c) => <StoryRow c={c} at={p.at} />)}
               </table>
             </td>
