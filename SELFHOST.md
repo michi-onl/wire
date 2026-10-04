@@ -21,9 +21,10 @@ runtime of Cloudflare, on your computer. It needs no Cloudflare account.
 `wrangler.jsonc` sets the variable under `vars`. For a local test, use
 `npx wrangler dev --var WIRE_ALLOW_REFRESH:1`.
 
-`/?refresh=1` bypasses the five-minute cache. It forces one upstream request
-for each source. The function can amplify traffic, so wire disables it by
-default and hides the refresh link until you set the variable.
+`/?refresh=1` bypasses the five-minute cache and sends one request to each
+source. A stranger who calls it in a loop sends that traffic to 16 sources, so
+wire turns it off by default and hides the refresh link until you set the
+variable.
 
 ## Sources
 
@@ -38,14 +39,18 @@ default and hides the refresh link until you set the variable.
 | Creative Review | `creativereview.co.uk/feed/`                                 | feed    | flat       | design   |
 | Creative Boom   | `creativeboom.com/feed/`                                     | feed    | flat       | design   |
 | Abduzeedo       | `abduzeedo.com/rss.xml`                                      | feed    | flat       | design   |
+| Design Milk     | `design-milk.com/feed/`                                      | feed    | flat       | design   |
 | PetaPixel       | `petapixel.com/feed/`                                        | feed    | flat       | photo    |
 | Fstoppers       | `fstoppers.com/rss.xml`                                      | feed    | flat       | photo    |
+| 35mmc           | `35mmc.com/feed/`                                            | feed    | flat       | photo    |
 | Bear Blog       | `bearblog.dev/discover/feed/`                                | feed    | position   | smallweb |
+| 404 Media       | `404media.co/rss/`                                           | feed    | flat       |          |
+| Ars Technica    | `feeds.arstechnica.com/arstechnica/index`                    | feed    | flat       | by section |
 
 Reddit rate-limits its feed. It answers a third quick request with a 429, so
-wire makes one Reddit request for all subreddits. wire retries it after a 429 and waits for the
-time in `x-ratelimit-reset`. If Reddit asks for more than 10 seconds, wire
-does not wait, and the source fails for this refresh.
+wire makes one Reddit request for all subreddits. After a 429, wire waits for
+the time in `x-ratelimit-reset` and tries again. If Reddit asks for more than
+10 seconds, wire does not wait, and the source fails for this refresh.
 
 A failed source appears in the `unavailable: …` line at the top of the page.
 A source that answers with a page that is not a feed, such as a bot check,
@@ -53,9 +58,9 @@ appears there as `(0 items)`. A feed whose items are all older than `MAX_AGE`
 does not appear there, because a blog that posts once a week still works.
 
 Each source has a `window` and a `max`. wire reads `window` items, drops what
-`DROP` rejects, and keeps `max` of the rest. The order matters: a cap before
-the filter empties a noisy source. The Reuters sitemap holds about 50 items
-and 30 of them are machine-written game recaps, so its window is 60.
+`DROP` rejects, and keeps `max` of the rest. A cap before the filter can
+empty a noisy source, so wire filters first. The Reuters sitemap holds about
+50 items, and machines write 30 of them as game recaps, so its window is 60.
 
 The Verge feed holds about 10 items, in order of time, so its prominence is
 flat. The homepage of The Verge has an editor order, but it is 1 MB of HTML,
@@ -80,8 +85,8 @@ and a Worker cannot read it within its CPU limit.
 
 ### The score
 
-`score()` returns a number of bits. Every part is a sum, so you can read one
-weight as "how many hours of age it cancels".
+`score()` returns a number of bits. The score is a sum of parts, so you can
+weigh one part against another, or against hours of age.
 
 | Part          | Weight   | Source of the value                              |
 | ------------- | -------- | ------------------------------------------------- |
@@ -92,8 +97,8 @@ weight as "how many hours of age it cancels".
 | Politics      | `W_POL`  | `political()`                                     |
 | Age           | `GRAVITY`| `- GRAVITY * log2(age_hours + AGE_FLOOR)`         |
 
-`AGE_FLOOR` is 4 hours. A wire republishes an item and its clock restarts, so
-a low floor puts every trivial five-minute item at the top. With the floor,
+`AGE_FLOOR` is 4 hours. A news agency republishes an item with a new time.
+With a low floor, each of these fresh copies would go to the top. With the floor,
 agreement from a second source outweighs about three hours of age.
 
 `prominence()` gives 0 to 1 for the standing of an item on its own front page.
@@ -115,10 +120,11 @@ That outweighs about a day of age.
 titles share enough rare words. `idf()` weights a word by how rare it is in
 the batch, and adds 1 so a small batch still works. Two items join when
 `similar()` reaches `SIM_MIN` and they share three words, or share two words
-inside `PAIR_WINDOW`. The second rule stops "Donald Trump" alone from joining
-two unrelated reports. A shared name that survives translation, such as a
-place, joins a German and an English report of one event. A German compound
-does not, so wire misses some cross-language pairs.
+inside `PAIR_WINDOW`. With the second rule, "Donald Trump" alone cannot join
+two unrelated reports. A place name reads the same in German and English, so
+wire can join a German and an English report of one event through it. A
+German compound such as "Waldbrand" matches no English word, so wire misses
+some pairs across the two languages.
 
 Reddit and HN link to an article somewhere else. `parseFeed()` reads that
 address, so a Reddit post and a Reuters article about one story become one
@@ -146,22 +152,24 @@ of its source, a live blog, and anything older than `MAX_AGE`, 72 hours. The
 
 `select()` drops a row of party politics, unless `POL_MAJOR` sources carry
 it. `political()` gives the confidence, and `score()` charges `W_POL` for it.
-A match of `POL_ALWAYS`, the MAGA list, never stays.
+`select()` drops a match of `POL_ALWAYS`, the MAGA list, at any count of
+sources.
 
-### What wire remembers
+### State
 
-Nothing between two refreshes. wire keeps the last page for five minutes, in
-the memory of the Worker and in the Cache API of the data center. After five
-minutes, the next reader gets the old page at once, and the Worker builds a
-new page after the answer. After one hour, wire builds the page before it
-answers. wire keeps no count, no history, and nothing about a reader.
+wire keeps only the last page between two refreshes. It holds that page for
+five minutes, in the memory of the Worker and in the Cache API of the data
+center. After five minutes, the next reader gets the old page at once, and
+the Worker builds a new page after the answer. After one hour, wire builds
+the page before it answers. wire keeps no count, no history, and nothing
+about a reader.
 
 ## CPU
 
 The free plan of Cloudflare Workers gives 10 ms of CPU to each request. A
 network wait does not count. Parsing, ranking, and rendering count. A refresh
-runs at most once in five minutes, so it usually runs in a new Worker, where
-V8 compiles each function and each regex on the first call.
+runs at most once in five minutes, so most refreshes run in a new Worker. V8
+there compiles each function and each regex on the first call.
 
 `bench/` measures the path in Node, over bodies that you save from the live
 sources into `bench/bodies/`. Git ignores that directory. `bench/files.ts`
@@ -174,16 +182,19 @@ npx tsx bench/warmup.ts           # one run after src/warm.ts, as in a new Worke
 npx tsx bench/curve.ts            # refresh 1 to 12 in one process
 ```
 
-On a laptop, a refresh after the warm-up costs about 10 ms, and a warm refresh
-costs about 3 ms. Inside a Worker, `performance.now()` does not advance during
-CPU work, so the only real value is the CPU time metric in the Cloudflare
-dashboard.
+On 2026-10-04, on a laptop, a refresh after the warm-up cost about 4 to 5 ms,
+and a warm refresh cost about 2 ms. Inside a Worker, `performance.now()` does
+not advance during CPU work. Read the CPU time metric in the Cloudflare
+dashboard for the true cost.
 
 ## Sources not included
 
 ARTE has no feed, and its internal API gives a 404. The Wider Image redirects
 to a Reuters page that gives a 401. YouTube subscriptions need per-channel IDs
 or login cookies.
+
+No Neocities feed carries daily news. The Neocities blog posts about once a
+year. r/neocities and Bear Blog are the closest daily sources.
 
 ## Deploy
 
