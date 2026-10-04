@@ -159,10 +159,25 @@ describe("score", () => {
   test("a focus source gives its field", () => {
     for (const [source, url, field] of [
       ["Creative Review", "https://www.creativereview.co.uk/a/", "design"],
+      ["Design Milk", "https://design-milk.com/a/", "design"],
       ["PetaPixel", "https://petapixel.com/2026/10/01/a/", "photo"],
+      ["35mmc", "https://www.35mmc.com/01/10/2026/a/", "photo"],
       ["Bear Blog", "https://someone.example/post/", "smallweb"]]) {
       expect(topic(cluster([item("Plain words", source, url)])[0]), source)
         .toEqual([field, W_FOCUS]);
+    }
+  });
+
+  test("an Ars section gives its topic", () => {
+    // The section decides. The science and space desks get science; every
+    // other desk of Ars Technica gets tech.
+    for (const [url, field] of [
+      ["https://arstechnica.com/space/2026/10/a/", "science"],
+      ["https://arstechnica.com/science/2026/10/b/", "science"],
+      ["https://arstechnica.com/gadgets/2026/10/c/", "tech"],
+      ["https://arstechnica.com/security/2026/10/d/", "tech"]]) {
+      expect(topic(cluster([item("Plain words", "Ars Technica", url)])[0])[0], url)
+        .toBe(field);
     }
   });
 

@@ -14,10 +14,11 @@ feeds. `src/index.tsx` holds the routes, the fetch, and the cache.
   `position`, or `flat`), an `authority` multiplier, a `window`, and a `max`.
   A source that covers one focus field also has a `topic`.
 - The reader opens wire for graphic design, photography, and the small web of
-  Neocities and personal sites. Six sources carry these fields: Creative
-  Review, Creative Boom, Abduzeedo, PetaPixel, Fstoppers, and Bear Blog. The
-  Reddit source reads design, photography, and Neocities subreddits. HN,
-  SPIEGEL, The Verge, and Reuters give the general news.
+  Neocities and personal sites. Eight sources carry these fields: Creative
+  Review, Creative Boom, Abduzeedo, Design Milk, PetaPixel, Fstoppers, 35mmc,
+  and Bear Blog. The Reddit source reads design, photography, and Neocities
+  subreddits. HN, SPIEGEL, The Verge, Reuters, 404 Media, and Ars Technica
+  give the general news.
 - Reddit gets one request. Reddit answers a third quick request with a 429,
   so a second Reddit source puts both at risk. Add a subreddit to the one
   address. Do not add r/analog: its titles are camera specs, and it took 10

@@ -19,7 +19,7 @@ line at the top.
 
 ## How wire picks the order
 
-wire reads eleven sources, so it knows one thing that no single site knows:
+wire reads fifteen sources, so it knows one thing that no single site knows:
 which story several independent editors chose at the same time. That is one
 signal. The field of the story is the other.
 
@@ -67,9 +67,13 @@ a second account or open the Hacker News comments.
 | Creative Review | Graphic design and branding                                  |
 | Creative Boom   | Graphic design, illustration, and branding                   |
 | Abduzeedo       | Graphic design, type, and packaging                          |
+| Design Milk     | Design, architecture, and interiors                          |
 | PetaPixel       | Photography news                                             |
 | Fstoppers       | Photography gear and technique                               |
+| 35mmc           | Film photography and the darkroom                            |
 | Bear Blog       | Trending posts of the small web                              |
+| 404 Media       | Internet culture, security, and the platforms                |
+| Ars Technica    | Tech and science                                             |
 
 Reuters and the design and photography magazines publish in time order, so no
 item there starts at the top. The Verge feed is in time order too. Its first

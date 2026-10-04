@@ -60,6 +60,10 @@ constant.
   The 5 sources before cost 9.6 ms on the same laptop, so the 11 sources cost
   about the same. Cloudflare servers can be slower. Read the CPU time metric in the dashboard after the first
   week, at the median and at the 99th percentile.
+- On 2026-10-04 wire went to 15 sources. The measured cost of the four new
+  sources is about 1.2 ms on the first request after the warm-up (4.6 ms to
+  5.8 ms, laptop). The warm refresh stayed at about 2 ms. Re-measure the first
+  request after each source is added.
 - Confirm that Cloudflare does not count the CPU of the global scope as CPU
   of the first request. `src/warm.ts` depends on it.
 - If the metric is too high, split the work: a cron trigger can build the page

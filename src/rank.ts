@@ -125,17 +125,35 @@ export const SOURCES: Source[] = [
   { name: "Abduzeedo", url: "https://abduzeedo.com/rss.xml", kind: "feed",
     max: 4, window: 8, prominence: "flat", authority: 0.85, topic: "design",
     home: "https://abduzeedo.com/" },
+  { name: "Design Milk", url: "https://design-milk.com/feed/", kind: "feed",
+    max: 4, window: 8, prominence: "flat", authority: 0.9, topic: "design",
+    home: "https://design-milk.com/" },
   { name: "PetaPixel", url: "https://petapixel.com/feed/", kind: "feed",
     max: 6, window: 10, prominence: "flat", authority: 1.0, topic: "photo",
     home: "https://petapixel.com/" },
   { name: "Fstoppers", url: "https://fstoppers.com/rss.xml", kind: "feed",
     max: 4, window: 10, prominence: "flat", authority: 0.85, topic: "photo",
     home: "https://fstoppers.com/" },
+  // A film-photography blog in time order. A small feed, and the field is
+  // the camera and the darkroom, close to the reader of the small web.
+  { name: "35mmc", url: "https://www.35mmc.com/feed/", kind: "feed",
+    max: 4, window: 8, prominence: "flat", authority: 0.85, topic: "photo",
+    home: "https://www.35mmc.com/" },
   // The discover page of Bear Blog is in trending order, so the position is
   // a signal of the readers.
   { name: "Bear Blog", url: "https://bearblog.dev/discover/feed/", kind: "feed",
     max: 6, window: 12, prominence: "position", authority: 0.85, topic: "smallweb",
     home: "https://bearblog.dev/discover/" },
+  // An independent site on internet culture, security, and the platforms.
+  // It publishes in time order, so no item starts at the top.
+  { name: "404 Media", url: "https://www.404media.co/rss/", kind: "feed",
+    max: 4, window: 10, prominence: "flat", authority: 0.9,
+    home: "https://www.404media.co/" },
+  // Tech and science, in time order. The publisher is strong, so it takes
+  // the publisher bonus; the section rule gives its topic.
+  { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index",
+    kind: "feed", max: 6, window: 20, prominence: "flat", authority: 0.95,
+    home: "https://arstechnica.com/" },
 ];
 
 export const AUTHORITY: Record<string, number> =
@@ -187,9 +205,9 @@ export const TOPICS: [string, RegExp, number][] = [
   ["germany", re(String.raw`spiegel\.de/(politik/deutschland|wirtschaft)/`), 0.35],
   ["world", re(String.raw`reuters\.com/(world|legal)/|spiegel\.de/ausland/`), 0.35],
   ["science", re(String.raw`(arxiv\.org|nature\.com|science\.org|\.edu/)`
-    + String.raw`|theverge\.com/science/`), 0.35],
-  ["tech", re(String.raw`theverge\.com/(tech|ai-artificial-intelligence|cyber-security)/`),
-    0.35],
+    + String.raw`|theverge\.com/science/|arstechnica\.com/(science|space)/`), 0.35],
+  ["tech", re(String.raw`theverge\.com/(tech|ai-artificial-intelligence|cyber-security)/`
+    + String.raw`|arstechnica\.com/`), 0.35],
   ["business", re(String.raw`reuters\.com/(business|markets|technology)/`), 0.35],
   ["celebrity", re(String.raw`spiegel\.de/panorama/leute/|/celebrity/`), -2.5],
   ["soft", re(String.raw`spiegel\.de/(familie|stil|reise|gesundheit|auto|panorama`
