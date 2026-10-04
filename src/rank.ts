@@ -105,10 +105,11 @@ export const SOURCES: Source[] = [
   { name: "SPIEGEL", url: "https://www.spiegel.de/schlagzeilen/tops/index.rss",
     kind: "feed", max: 10, window: 30, prominence: "position", authority: 0.95,
     home: "https://www.spiegel.de/" },
-  // The feed order stands in for the homepage order. The homepage is 1 MB of
-  // HTML, and a scrape of it costs more CPU than a Worker request may use.
+  // The feed is in time order, so the position measures only age, and the
+  // age term already charges age. The homepage has an editor order, but it is
+  // 1 MB of HTML, and a scrape of it costs more CPU than a Worker request may use.
   { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", kind: "feed",
-    max: 10, window: 30, prominence: "position", authority: 0.85,
+    max: 10, window: 30, prominence: "flat", authority: 0.85,
     home: "https://www.theverge.com/" },
   { name: "Reuters",
     url: "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
@@ -170,8 +171,15 @@ export const SOURCE_TOPIC: Record<string, string> =
 export const DROP: Record<string, RegExp> = {
   Reuters: re(String.raw`reuters\.com/(sports|lifestyle|fr|es|pt|de|it|ar|ja|ko|zh|cn|br)/`, "i"),
   SPIEGEL: re(String.raw`spiegel\.de/(sport|fussball|services|gutscheine|partnerschaften)/`, "i"),
-  "The Verge": re(String.raw`theverge\.com/(deals|sponsored)/`, "i"),
+  // The Verge files deals posts under /gadgets/ too, with a new slug each
+  // time. The rule reads "deals" as one part of the path. A bare "deal" is
+  // news: a trade deal, a TikTok deal.
+  "The Verge": re(String.raw`theverge\.com(/sponsored/|[^?#]*[/-]deals([-/?#]|$))`, "i"),
   Fstoppers: re(String.raw`fstoppers\.com/sponsored/`, "i"),
+  // The weekly podcast and the "Behind the Blog" letter repeat the reports of
+  // the week. The rule reads the start of the path: a report about a podcast
+  // of another publisher, such as cbc-podcast-…, stays.
+  "404 Media": re(String.raw`404media\.co/(podcast-|behind-the-blog)`, "i"),
 };
 export const DROP_TITLE = words("liveblog|live-?ticker|live updates|newsblog|im liveticker");
 
@@ -205,15 +213,16 @@ export const TOPICS: [string, RegExp, number][] = [
   ["germany", re(String.raw`spiegel\.de/(politik/deutschland|wirtschaft)/`), 0.35],
   ["world", re(String.raw`reuters\.com/(world|legal)/|spiegel\.de/ausland/`), 0.35],
   ["science", re(String.raw`(arxiv\.org|nature\.com|science\.org|\.edu/)`
-    + String.raw`|theverge\.com/science/|arstechnica\.com/(science|space)/`), 0.35],
+    + String.raw`|theverge\.com/science/|arstechnica\.com/(science|space|health)/`), 0.35],
   ["tech", re(String.raw`theverge\.com/(tech|ai-artificial-intelligence|cyber-security)/`
-    + String.raw`|arstechnica\.com/`), 0.35],
+    + String.raw`|arstechnica\.com/(gadgets|security|tech-policy|information-technology`
+    + String.raw`|ai|apple|google|cars)/`), 0.35],
   ["business", re(String.raw`reuters\.com/(business|markets|technology)/`), 0.35],
   ["celebrity", re(String.raw`spiegel\.de/panorama/leute/|/celebrity/`), -2.5],
   ["soft", re(String.raw`spiegel\.de/(familie|stil|reise|gesundheit|auto|panorama`
     + String.raw`|kultur|literatur)/`
     + String.raw`|theverge\.com/(entertainment|podcast|column|games`
-    + String.raw`|report/[^/]*(music|podcast))/`), -1.8],
+    + String.raw`|report/[^/]*(music|podcast))/|arstechnica\.com/(gaming|culture)/`), -1.8],
 ];
 export const TECH_WORDS = words(
   "ai|llm|gpu|chip|linux|rust|python|kernel|compiler|database|browser"

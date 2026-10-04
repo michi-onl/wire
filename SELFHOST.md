@@ -32,7 +32,7 @@ default and hides the refresh link until you set the variable.
 | Hacker News     | `hnrss.org/frontpage`                                        | feed    | points     |          |
 | Reddit          | `reddit.com/r/graphic_design+typography+photography+neocities+SmallWeb/.rss` | feed | position | by subreddit |
 | SPIEGEL         | `spiegel.de/schlagzeilen/tops/index.rss`                     | feed    | position   |          |
-| The Verge       | `theverge.com/rss/index.xml`                                 | feed    | position   |          |
+| The Verge       | `theverge.com/rss/index.xml`                                 | feed    | flat       |          |
 | Reuters         | `reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml` | sitemap | flat       |          |
 | Creative Review | `creativereview.co.uk/feed/`                                 | feed    | flat       | design   |
 | Creative Boom   | `creativeboom.com/feed/`                                     | feed    | flat       | design   |
@@ -56,9 +56,9 @@ Each source has a `window` and a `max`. wire reads `window` items, drops what
 the filter empties a noisy source. The Reuters sitemap holds about 50 items
 and 30 of them are machine-written game recaps, so its window is 60.
 
-The Verge feed holds about 10 items, in order of time. The homepage of The
-Verge has an editor order, but it is 1 MB of HTML, and a Worker cannot read
-it within its CPU limit.
+The Verge feed holds about 10 items, in order of time, so its prominence is
+flat. The homepage of The Verge has an editor order, but it is 1 MB of HTML,
+and a Worker cannot read it within its CPU limit.
 
 ## The code
 

@@ -64,6 +64,34 @@ describe("keep", () => {
     expect(keep(item("Far-left party wins Berlin election", "Reuters",
       "https://www.reuters.com/world/europe/berlin-election/"))).toBe(true);
   });
+
+  test("drops a Verge deals post in any section", () => {
+    for (const url of [
+      "https://www.theverge.com/deals/1/x",
+      "https://www.theverge.com/gadgets/999447/best-early-amazon-prime-day-big-deals-sale-october",
+      "https://www.theverge.com/tech/2/deals-of-the-week"]) {
+      expect(keep(item("Sale on headphones", "The Verge", url)), url).toBe(false);
+    }
+  });
+
+  test("keeps a Verge story about a deal", () => {
+    // "deal" without the s is news. "ideals" holds the letters but is a word.
+    for (const url of [
+      "https://www.theverge.com/policy/3/tiktok-deal-oracle",
+      "https://www.theverge.com/news/4/trade-deal-chips",
+      "https://www.theverge.com/tech/5/silicon-valley-ideals"]) {
+      expect(keep(item("Talks end in Washington", "The Verge", url)), url).toBe(true);
+    }
+  });
+
+  test("drops the 404 Media podcast and letter, not a report on a podcast", () => {
+    expect(keep(item("Podcast: The week in data leaks", "404 Media",
+      "https://www.404media.co/podcast-the-week-in-data-leaks/"))).toBe(false);
+    expect(keep(item("Behind the Blog: Long nights", "404 Media",
+      "https://www.404media.co/behind-the-blog-long-nights/"))).toBe(false);
+    expect(keep(item("Radio show exposed a deepfake ring", "404 Media",
+      "https://www.404media.co/cbc-podcast-mr-deepfakes-porn-empire/"))).toBe(true);
+  });
 });
 
 describe("cluster", () => {
@@ -170,13 +198,15 @@ describe("score", () => {
   });
 
   test("an Ars section gives its topic", () => {
-    // The section decides. The science and space desks get science; every
-    // other desk of Ars Technica gets tech.
+    // The section decides. Games and culture are soft, as on The Verge.
     for (const [url, field] of [
       ["https://arstechnica.com/space/2026/10/a/", "science"],
       ["https://arstechnica.com/science/2026/10/b/", "science"],
-      ["https://arstechnica.com/gadgets/2026/10/c/", "tech"],
-      ["https://arstechnica.com/security/2026/10/d/", "tech"]]) {
+      ["https://arstechnica.com/health/2026/10/c/", "science"],
+      ["https://arstechnica.com/gadgets/2026/10/d/", "tech"],
+      ["https://arstechnica.com/security/2026/10/e/", "tech"],
+      ["https://arstechnica.com/gaming/2026/10/f/", "soft"],
+      ["https://arstechnica.com/culture/2026/10/g/", "soft"]]) {
       expect(topic(cluster([item("Plain words", "Ars Technica", url)])[0])[0], url)
         .toBe(field);
     }
