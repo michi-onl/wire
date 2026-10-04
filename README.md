@@ -44,3 +44,7 @@ and the full ranking rules.
 ## License
 
 [MIT](LICENSE)
+
+The MIT license excludes `CSS` in `src/page.tsx`. That constant copies the
+[Hacker News stylesheet](https://news.ycombinator.com/news.css), and Y
+Combinator holds its rights.
