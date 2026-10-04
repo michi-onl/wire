@@ -74,7 +74,7 @@ export const GRAVITY = 1.15; // bits of decay for each doubling of the age
 // story that several sources carry.
 export const AGE_FLOOR = 4.0;
 export const MAX_AGE = 72.0; // hours; an older item leaves the list
-export const SHOWN = 30; // rows on the page
+export const SHOWN = 40; // rows on the page
 
 export const W_PROM = 2.2; // standing inside its own source
 export const W_CORR = 1.9; // independent sources on the same story
