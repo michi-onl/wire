@@ -65,6 +65,18 @@ describe("keep", () => {
       "https://www.reuters.com/world/europe/berlin-election/"))).toBe(true);
   });
 
+  test("drops Tagesschau video, broadcasts, and sport", () => {
+    for (const url of [
+      "https://www.tagesschau.de/video/video-1660076.html",
+      "https://www.tagesschau.de/multimedia/livestreams/livestream-ts24-104.html",
+      "https://www.tagesschau.de/tagesschau_20_uhr/video-1659908.html",
+      "https://www.tagesschau.de/tagesschau_in_100_sekunden/video-1660044.html",
+      "https://www.tagesschau.de/tagesthemen/tt-12890.html",
+      "https://www.sportschau.de/fussball/nationsleague/irland-israel-100.html"]) {
+      expect(keep(item("Sendung am Abend", "Tagesschau", url)), url).toBe(false);
+    }
+  });
+
   test("drops a Verge deals post in any section", () => {
     for (const url of [
       "https://www.theverge.com/deals/1/x",
@@ -82,6 +94,11 @@ describe("keep", () => {
       "https://www.theverge.com/tech/5/silicon-valley-ideals"]) {
       expect(keep(item("Talks end in Washington", "The Verge", url)), url).toBe(true);
     }
+  });
+
+  test("keeps a Tagesschau report", () => {
+    expect(keep(item("Niedrigwasser im Rhein bremst Frachter", "Tagesschau",
+      "https://www.tagesschau.de/inland/innenpolitik/niedrigwasser-100.html"))).toBe(true);
   });
 
   test("drops the 404 Media podcast and letter, not a report on a podcast", () => {
@@ -212,6 +229,19 @@ describe("score", () => {
     }
   });
 
+  test("a Tagesschau section gives its topic", () => {
+    for (const [url, field] of [
+      ["https://www.tagesschau.de/inland/gesellschaft/seemannsmission-100.html", "germany"],
+      ["https://www.tagesschau.de/wirtschaft/verbraucher/familienticket-100.html", "germany"],
+      ["https://www.tagesschau.de/ausland/asien/jemen-102.html", "world"],
+      // A regional item of an ARD station gets no national boost.
+      ["https://www.tagesschau.de/inland/regional/niedersachsen/evakuierung-118.html",
+        "regional"]]) {
+      expect(topic(cluster([item("Plain words", "Tagesschau", url)])[0])[0], url)
+        .toBe(field);
+    }
+  });
+
   test("a subreddit gives its field", () => {
     const c = cluster([item("Help with my site", "Reddit",
       "https://www.reddit.com/r/neocities/comments/1/help/")])[0];
@@ -246,6 +276,15 @@ describe("score", () => {
     const news = cluster([item("Port reopens after the storm", "Reuters",
       "https://www.reuters.com/world/port-1/", { hours: 3 })])[0];
     expect(score(design)).toBeGreaterThan(score(news) + 2);
+  });
+
+  test("a focus row beats the lead item of Tagesschau", () => {
+    const photo = cluster([item("Darkroom prints of the harbour cranes", "35mmc",
+      "https://www.35mmc.com/01/10/2026/harbour-cranes/", { hours: 3 })])[0];
+    const lead = cluster([item("Seemannsmission sucht neue Helfer", "Tagesschau",
+      "https://www.tagesschau.de/inland/gesellschaft/seemannsmission-100.html",
+      { hours: 3, pos: 0, n: 30 })])[0];
+    expect(score(photo)).toBeGreaterThan(score(lead));
   });
 
   test("a podcast slug counts as soft", () => {
@@ -313,6 +352,13 @@ describe("politics", () => {
     // Both words come from a live batch. A list of whole words missed them.
     expect(pol("Kremlpartei fuehrt bei der Parlamentswahl", "SPIEGEL",
       "https://www.spiegel.de/ausland/r/")).toBeGreaterThanOrEqual(POL_DROP);
+  });
+
+  test("the Tagesschau domestic-politics section counts", () => {
+    expect(pol("Rentenkasse braucht mehr Geld", "Tagesschau",
+      "https://www.tagesschau.de/inland/innenpolitik/rente-100.html")).toBe(0.4);
+    expect(pol("Rentenkasse braucht mehr Geld", "Tagesschau",
+      "https://www.tagesschau.de/inland/gesellschaft/rente-100.html")).toBe(0);
   });
 
   test("a lookalike German word scores nothing", () => {

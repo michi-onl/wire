@@ -34,6 +34,7 @@ default and hides the refresh link until you set the variable.
 | SPIEGEL         | `spiegel.de/schlagzeilen/tops/index.rss`                     | feed    | position   |          |
 | The Verge       | `theverge.com/rss/index.xml`                                 | feed    | flat       |          |
 | Reuters         | `reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml` | sitemap | flat       |          |
+| Tagesschau      | `tagesschau.de/index~rss2.xml`                               | feed    | position   |          |
 | Creative Review | `creativereview.co.uk/feed/`                                 | feed    | flat       | design   |
 | Creative Boom   | `creativeboom.com/feed/`                                     | feed    | flat       | design   |
 | Abduzeedo       | `abduzeedo.com/rss.xml`                                      | feed    | flat       | design   |
@@ -96,9 +97,9 @@ a low floor puts every trivial five-minute item at the top. With the floor,
 agreement from a second source outweighs about three hours of age.
 
 `prominence()` gives 0 to 1 for the standing of an item on its own front page.
-HN uses the points. Reddit, SPIEGEL, The Verge, and Bear Blog use the
-position. Reuters and the magazines publish in time order, so no editor
-ranked them and every item gets a flat 0.32.
+HN uses the points. Reddit, SPIEGEL, Tagesschau, and Bear Blog use the
+position. Reuters, The Verge, 404 Media, Ars Technica, and the magazines
+publish in time order with no editor rank, so their items get a flat 0.32.
 
 ### Focus
 
@@ -133,9 +134,15 @@ A row in `SOFT_TOPICS` starts below `SOFT_FLOOR`.
 ### Filters
 
 `keep()` drops an item before it reaches the list. It drops the `DROP` pattern
-of its source, a live blog, and anything older than `MAX_AGE`. This removes
-Reuters sport and its translated wires, SPIEGEL sport, and an evergreen
-service page that a top list sometimes holds.
+of its source, a live blog, and anything older than `MAX_AGE`, 72 hours. The
+`DROP` patterns remove:
+
+- Reuters sport and the translated Reuters wires
+- SPIEGEL sport
+- the video, broadcast, and sportschau.de items of Tagesschau
+- the deals posts of The Verge in any section
+- the podcast and the "Behind the Blog" letter of 404 Media
+- an evergreen service page in a top list
 
 `select()` drops a row of party politics, unless `POL_MAJOR` sources carry
 it. `political()` gives the confidence, and `score()` charges `W_POL` for it.

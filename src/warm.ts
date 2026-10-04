@@ -6,8 +6,12 @@ import { SOURCES, type Story } from "./rank";
 // function and a regex on the first call, and a refresh in a new Worker
 // costs about 3 times a warm one. The global scope runs before the first
 // request and has its own limit of 1 second, so wire runs the full path once
-// here on a tiny batch. Each title holds a dash or an umlaut, because V8
-// compiles a regex again for a string with a character above U+00FF.
+// here on a tiny batch. V8 compiles a regex once for a one-byte string and
+// again for a string with a character above U+00FF. A title that the parser
+// cuts from a body with such a character is a two-byte string too, even when
+// the title is plain ASCII. Thus the bodies hold a dash, except TS, which
+// holds umlauts and no dash. Without a one-byte body, the first one-byte
+// title of a real batch cost 1 to 2 ms.
 
 const DATE = "2026-10-01T10:00:00Z";
 const RSS = `<rss version="2.0"><channel>
@@ -24,6 +28,17 @@ const ATOM = `<feed xmlns="http://www.w3.org/2005/Atom">
 <entry><title>Five reasons the election matters</title><updated>${DATE}</updated>
 <link rel="alternate" href="https://www.reddit.com/r/news/comments/2/y/"/><content type="html">x</content></entry>
 </feed>`;
+const TS = `<rss version="2.0"><channel>
+<item><title>Bundestag: Länder streiten über Niedrigwasser</title>
+<link>https://www.tagesschau.de/inland/innenpolitik/a-100.html</link>
+<pubDate>Wed, 01 Oct 2026 10:00:00 +0000</pubDate></item>
+<item><title>Lettland wählt, Koalition unsicher</title>
+<link>https://www.tagesschau.de/ausland/europa/b-100.html</link>
+<pubDate>Wed, 01 Oct 2026 09:00:00 +0000</pubDate></item>
+<item><title>tagesschau um 20 Uhr</title>
+<link>https://www.tagesschau.de/video/video-1.html</link>
+<pubDate>Wed, 01 Oct 2026 08:00:00 +0000</pubDate></item>
+</channel></rss>`;
 const SITEMAP = `<urlset>
 <url><loc>https://www.reuters.com/world/a/</loc><news:news><news:publication_date>${DATE}</news:publication_date>
 <news:title><![CDATA[Wahl – Koalition in Österreich]]></news:title></news:news></url>
@@ -37,7 +52,8 @@ export function warm() {
   const at = Date.parse("2026-10-01T12:00:00Z") / 1000;
   const stories: Story[] = [];
   for (const s of SOURCES) {
-    const body = s.kind === "sitemap" ? SITEMAP : s.name === "Reddit" ? ATOM : RSS;
+    const body = s.kind === "sitemap" ? SITEMAP : s.name === "Reddit" ? ATOM
+      : s.name === "Tagesschau" ? TS : RSS;
     stories.push(...items(s, body, at));
   }
   return render({ rows: rank(stories, at), errors: ["HN (Error: warm)"], wall: "12:00", at,

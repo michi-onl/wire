@@ -115,6 +115,12 @@ export const SOURCES: Source[] = [
     url: "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
     kind: "sitemap", max: 10, window: 60, prominence: "flat", authority: 0.9,
     home: "https://www.reuters.com/" },
+  // The homepage feed is in editorial order: the lead item comes first, and
+  // video, livestream, and broadcast items follow. DROP removes those. The
+  // feed also lists sportschau.de items, thus DROP removes that host too.
+  { name: "Tagesschau", url: "https://www.tagesschau.de/index~rss2.xml",
+    kind: "feed", max: 10, window: 30, prominence: "position", authority: 0.9,
+    home: "https://www.tagesschau.de/" },
   // The design and photography magazines publish in time order. No editor
   // chose a top item, so each item starts flat, as a wire does.
   { name: "Creative Review", url: "https://www.creativereview.co.uk/feed/", kind: "feed",
@@ -180,6 +186,10 @@ export const DROP: Record<string, RegExp> = {
   // the week. The rule reads the start of the path: a report about a podcast
   // of another publisher, such as cbc-podcast-…, stays.
   "404 Media": re(String.raw`404media\.co/(podcast-|behind-the-blog)`, "i"),
+  // The bare "tagesschau" also matches each broadcast: tagesschau_20_uhr,
+  // tagesschau_in_100_sekunden, and the easy-language and sign-language forms.
+  Tagesschau: re(String.raw`tagesschau\.de/(video|multimedia|tagesthemen|tagesschau)`
+    + String.raw`|sportschau\.de/`, "i"),
 };
 export const DROP_TITLE = words("liveblog|live-?ticker|live updates|newsblog|im liveticker");
 
@@ -210,8 +220,14 @@ export const FOCUS: [string, RegExp, RegExp][] = [
 // news, tech, science, and German news carry a small boost, and soft news a
 // cost.
 export const TOPICS: [string, RegExp, number][] = [
-  ["germany", re(String.raw`spiegel\.de/(politik/deutschland|wirtschaft)/`), 0.35],
-  ["world", re(String.raw`reuters\.com/(world|legal)/|spiegel\.de/ausland/`), 0.35],
+  // A regional item of an ARD station is local news, so it gets no national
+  // boost. It stands first, because the germany rule reads all of /inland/.
+  // A lookahead in that rule cost 0.7 ms on the first request.
+  ["regional", re(String.raw`tagesschau\.de/inland/regional/`), 0.0],
+  ["germany", re(String.raw`spiegel\.de/(politik/deutschland|wirtschaft)/`
+    + String.raw`|tagesschau\.de/(inland|wirtschaft)/`), 0.35],
+  ["world", re(String.raw`reuters\.com/(world|legal)/|spiegel\.de/ausland/`
+    + String.raw`|tagesschau\.de/ausland/`), 0.35],
   ["science", re(String.raw`(arxiv\.org|nature\.com|science\.org|\.edu/)`
     + String.raw`|theverge\.com/science/|arstechnica\.com/(science|space|health)/`), 0.35],
   ["tech", re(String.raw`theverge\.com/(tech|ai-artificial-intelligence|cyber-security)/`
@@ -240,7 +256,8 @@ export const SOFT_SLUG = re(
 // A section cannot decide alone. SPIEGEL files a coalition crisis and a pension
 // debate under one politik/ path. So the score reads the section and the
 // title, and returns a confidence.
-export const POL_SECTION = re(String.raw`spiegel\.de/politik/`, "i");
+export const POL_SECTION = re(String.raw`spiegel\.de/politik/|tagesschau\.de/inland/innenpolitik/`,
+  "i");
 // One of these words settles the row on its own. German builds a compound for
 // each of them, thus no list of whole words can hold them: one live batch gave
 // Parlamentswahl and Kremlpartei, and both scored zero against such a list. The
@@ -303,7 +320,8 @@ export const POL_NAMES = words(
 export const PUB_GOOD = re(
   String.raw`(^|\.)(reuters\.com|apnews\.com|bbc\.co\.uk|bbc\.com|ft\.com|economist\.com`
   + String.raw`|nature\.com|science\.org|arstechnica\.com|theverge\.com|spiegel\.de`
-  + String.raw`|zeit\.de|faz\.net|github\.com|arxiv\.org|acm\.org|ieee\.org)$|\.(gov|edu)$`,
+  + String.raw`|tagesschau\.de|zeit\.de|faz\.net|github\.com|arxiv\.org|acm\.org`
+  + String.raw`|ieee\.org)$|\.(gov|edu)$`,
   "i");
 export const PUB_POOR = re(
   String.raw`(^|\.)(msn\.com|dailymail\.co\.uk|the-sun\.com|nypost\.com|mirror\.co\.uk`
