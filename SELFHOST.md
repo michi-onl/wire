@@ -46,6 +46,11 @@ wire makes one Reddit request for all subreddits. wire retries it after a 429 an
 time in `x-ratelimit-reset`. If Reddit asks for more than 10 seconds, wire
 does not wait, and the source fails for this refresh.
 
+A failed source appears in the `unavailable: …` line at the top of the page.
+A source that answers with a page that is not a feed, such as a bot check,
+appears there as `(0 items)`. A feed whose items are all older than `MAX_AGE`
+does not appear there, because a blog that posts once a week still works.
+
 Each source has a `window` and a `max`. wire reads `window` items, drops what
 `DROP` rejects, and keeps `max` of the rest. The order matters: a cap before
 the filter empties a noisy source. The Reuters sitemap holds about 50 items

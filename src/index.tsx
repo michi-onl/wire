@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import "./warm";
-import { items, rank } from "./build";
+import { empty, items, rank } from "./build";
 import { MANIFEST, render } from "./page";
 import { now, SOURCES, wall, type Source, type Story } from "./rank";
 
@@ -77,8 +77,13 @@ async function build(key: string, origin: string, allowRefresh: boolean): Promis
   const errors: string[] = [];
   SOURCES.forEach((src, i) => {
     const { body, error } = results[i];
-    if (body !== null) stories.push(...items(src, body, at));
     if (error) errors.push(error);
+    if (body === null) return;
+    const got = items(src, body, at);
+    stories.push(...got);
+    // A second parse only for a source that gave nothing, so it costs no CPU
+    // on a normal refresh.
+    if (!got.length && empty(src, body)) errors.push(`${src.name} (0 items)`);
   });
   const html = render({ rows: rank(stories, at), errors, wall: wall(at * 1000), at,
     allowRefresh, canonical: origin + "/" });

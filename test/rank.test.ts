@@ -2,11 +2,12 @@
 //
 //   npx vitest run
 import { describe, expect, test } from "vitest";
+import { empty, items } from "../src/build";
 import { parseFeed, parseSitemap } from "../src/parse";
 import {
   allowed, cluster, keep, now, political, POL_DROP, POL_MAJOR, POL_NAMES, POL_STRONG,
   POL_WEAK, prominence, score, select, SOFT_FLOOR, SOFT_TOPICS, story, tokens, topic, wall,
-  canonical, W_FOCUS, type Row, type Story, type StoryExtra,
+  canonical, SOURCES, W_FOCUS, type Row, type Story, type StoryExtra,
 } from "../src/rank";
 
 function item(title: string, source: string, url: string,
@@ -468,6 +469,23 @@ describe("unicode words", () => {
     const p = political(cluster([item("Söder stellt neue Brücke vor", "SPIEGEL",
       "https://www.spiegel.de/wirtschaft/b/")])[0]);
     expect(p).toBe(0.25);
+  });
+});
+
+describe("empty", () => {
+  const src = SOURCES.find((s) => s.name === "PetaPixel")!;
+
+  test("a page that is not a feed is empty", () => {
+    expect(empty(src, "<!doctype html><html><body>Just a moment…</body></html>")).toBe(true);
+  });
+
+  test("a feed of old items is not empty", () => {
+    // A slow blog gives no item to the list, but it is not broken.
+    const body = `<rss version="2.0"><channel><item><title>Old lens test</title>
+      <link>https://petapixel.com/2026/01/01/old/</link>
+      <pubDate>Thu, 01 Jan 2026 10:00:00 +0000</pubDate></item></channel></rss>`;
+    expect(items(src, body, now())).toHaveLength(0);
+    expect(empty(src, body)).toBe(false);
   });
 });
 
