@@ -30,7 +30,8 @@ sources and an `unavailable: …` line.
 
 ## Sources
 
-- **Design:** Creative Review, Creative Boom, Abduzeedo, Design Milk
+- **Design:** Creative Review, Creative Boom, Abduzeedo, Design Milk,
+  It's Nice That
 - **Photography:** PetaPixel, Fstoppers, 35mmc
 - **Small web:** Bear Blog, and Reddit for design, photography, and Neocities
 - **News:** Hacker News, SPIEGEL, Tagesschau, Reuters, The Verge, 404 Media,

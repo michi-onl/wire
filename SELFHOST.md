@@ -22,7 +22,7 @@ runtime of Cloudflare, on your computer. It needs no Cloudflare account.
 `npx wrangler dev --var WIRE_ALLOW_REFRESH:1`.
 
 `/?refresh=1` bypasses the five-minute cache and sends one request to each
-source. A stranger who calls it in a loop sends that traffic to 16 sources, so
+source. A stranger who calls it in a loop sends that traffic to 17 sources, so
 wire turns it off by default and hides the refresh link until you set the
 variable.
 
@@ -40,6 +40,7 @@ variable.
 | Creative Boom   | `creativeboom.com/feed/`                                     | feed    | flat       | design   |
 | Abduzeedo       | `abduzeedo.com/rss.xml`                                      | feed    | flat       | design   |
 | Design Milk     | `design-milk.com/feed/`                                      | feed    | flat       | design   |
+| It's Nice That  | `itsnicethat.com/articles.atom`                              | feed    | flat       | design   |
 | PetaPixel       | `petapixel.com/feed/`                                        | feed    | flat       | photo    |
 | Fstoppers       | `fstoppers.com/rss.xml`                                      | feed    | flat       | photo    |
 | 35mmc           | `35mmc.com/feed/`                                            | feed    | flat       | photo    |
@@ -148,6 +149,7 @@ of its source, a live blog, and anything older than `MAX_AGE`, 72 hours. The
 - the video, broadcast, and sportschau.de items of Tagesschau
 - the deals posts of The Verge in any section
 - the podcast and the "Behind the Blog" letter of 404 Media
+- the sponsored posts and media partnerships of It's Nice That
 - an evergreen service page in a top list
 
 `select()` drops a row of party politics, unless `POL_MAJOR` sources carry

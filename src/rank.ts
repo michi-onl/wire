@@ -135,6 +135,10 @@ export const SOURCES: Source[] = [
   { name: "Design Milk", url: "https://design-milk.com/feed/", kind: "feed",
     max: 4, window: 8, prominence: "flat", authority: 0.9, topic: "design",
     home: "https://design-milk.com/" },
+  // The feed of the site itself. The FeedBurner copy holds the same entries.
+  { name: "It's Nice That", url: "https://www.itsnicethat.com/articles.atom", kind: "feed",
+    max: 4, window: 10, prominence: "flat", authority: 0.95, topic: "design",
+    home: "https://www.itsnicethat.com/" },
   { name: "PetaPixel", url: "https://petapixel.com/feed/", kind: "feed",
     max: 6, window: 10, prominence: "flat", authority: 1.0, topic: "photo",
     home: "https://petapixel.com/" },
@@ -182,6 +186,10 @@ export const DROP: Record<string, RegExp> = {
   // news: a trade deal, a TikTok deal.
   "The Verge": re(String.raw`theverge\.com(/sponsored/|[^?#]*[/-]deals([-/?#]|$))`, "i"),
   Fstoppers: re(String.raw`fstoppers\.com/sponsored/`, "i"),
+  // It's Nice That marks a paid post in the slug, not in a section:
+  // …-sponsored-content-280926 and …-media-partnership-061026.
+  "It's Nice That": re(String.raw`itsnicethat\.com/[^?#]*-(sponsored-content|media-partnership)-`,
+    "i"),
   // The weekly podcast and the "Behind the Blog" letter repeat the reports of
   // the week. The rule reads the start of the path: a report about a podcast
   // of another publisher, such as cbc-podcast-…, stays.

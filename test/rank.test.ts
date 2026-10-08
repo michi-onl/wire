@@ -109,6 +109,17 @@ describe("keep", () => {
     expect(keep(item("Radio show exposed a deepfake ring", "404 Media",
       "https://www.404media.co/cbc-podcast-mr-deepfakes-porn-empire/"))).toBe(true);
   });
+
+  test("drops a paid It's Nice That post, not a project on a partnership", () => {
+    for (const url of [
+      "https://www.itsnicethat.com/articles/made-for-business-panel-series-sponsored-content-280926",
+      "https://www.itsnicethat.com/features/new-bahru-creative-industry-media-partnership-061026"]) {
+      expect(keep(item("Panel series begins in town", "It's Nice That", url)), url).toBe(false);
+    }
+    expect(keep(item("Studio pairs a museum with a brewery", "It's Nice That",
+      "https://www.itsnicethat.com/articles/museum-brewery-partnership-graphic-design-project-081026")))
+      .toBe(true);
+  });
 });
 
 describe("cluster", () => {
