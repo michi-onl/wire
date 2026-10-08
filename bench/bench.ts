@@ -6,8 +6,8 @@
 //   npx tsx bench/bench.ts --cold   one run in a fresh process, as a new isolate
 import { readFileSync } from "node:fs";
 import { FILES } from "./files";
-import { items, rank } from "../src/build";
-import { render } from "../src/page";
+import { items, pages } from "../src/build";
+import { renderAll } from "../src/page";
 import { SOURCES, type Story } from "../src/rank";
 
 const dir = new URL("./bodies/", import.meta.url);
@@ -29,13 +29,13 @@ function once() {
     stories.push(...items(s, bodies[i], at));
     lap(s.name);
   });
-  const rows = rank(stories, at);
+  const rows = pages(stories, at);
   lap("rank");
-  const html = render({ rows, errors: [], wall: "00:00", at, allowRefresh: false,
-    canonical: "https://wire.michi.onl/" });
+  const html = renderAll(rows, { errors: [], wall: "00:00", at, allowRefresh: false,
+    origin: "https://wire.michi.onl" });
   lap("render");
   t.total = Object.values(t).reduce((a, b) => a + b, 0);
-  return { t, rows: rows.length, bytes: html.length };
+  return { t, rows: rows.get("/")!.length, bytes: html.get("/")!.length, pages: html.size };
 }
 
 if (process.argv.includes("--cold")) {
@@ -49,6 +49,7 @@ if (process.argv.includes("--cold")) {
     const v = all.map((t) => t[k]).sort((a, b) => a - b);
     return v[Math.floor(v.length / 2)];
   };
-  console.log(`warm median of ${runs} runs, ${last.rows} rows, ${last.bytes} bytes of HTML`);
+  console.log(`warm median of ${runs} runs, ${last.pages} pages, ${last.rows} rows and ${last.bytes} bytes`
+    + " of HTML on the front page");
   for (const k of Object.keys(all[0])) console.log(`  ${k.padEnd(10)} ${median(k).toFixed(3)} ms`);
 }

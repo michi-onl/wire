@@ -1,5 +1,5 @@
 import type { Child } from "hono/jsx";
-import { age, HOMES, SOURCES, type Row } from "./rank";
+import { age, HOMES, PAGES, SOURCES, type Row } from "./rank";
 
 export const SKY_500 = "#0ea5e9";
 export const SKY_50 = "#f0f9ff";
@@ -29,6 +29,7 @@ a:visited { color:var(--sky-600); text-decoration:none; }
 .title a { word-break: break-word; }
 
 .pagetop a:visited { color:var(--sky-950); }
+.topsel a:link, .topsel a:visited { color:#ffffff; }
 
 .subtext a:link, .subtext a:visited { color:var(--sky-600); }
 .subtext a:hover { text-decoration:underline; }
@@ -103,10 +104,10 @@ function subline(c: Row, at: number): Child[] {
   return bits;
 }
 
-const StoryRow = ({ c, at }: { c: Row; at: number }) => (
+const StoryRow = ({ c, n, at }: { c: Row; n: number; at: number }) => (
   <>
     <tr class="athing">
-      <td align="right" valign="top" class="title"><span class="rank">{c.rank}.</span></td>
+      <td align="right" valign="top" class="title"><span class="rank">{n}.</span></td>
       <td valign="top" class="votelinks"></td>
       <td class="title">
         <span class="titleline">
@@ -123,11 +124,21 @@ const StoryRow = ({ c, at }: { c: Row; at: number }) => (
   </>
 );
 
-function nav(): Child[] {
+function nav(path: string): Child[] {
+  const links: Child[] = [];
+  for (const p of PAGES) {
+    if (links.length) links.push(" | ");
+    const link = <a href={p.path}>{p.name}</a>;
+    links.push(p.path === path ? <span class="topsel">{link}</span> : link);
+  }
+  return links;
+}
+
+function sources(): Child[] {
   const links: Child[] = [];
   for (const src of SOURCES) {
     if (links.length) links.push(" | ");
-    links.push(<a href={src.home}>{src.name.toLowerCase()}</a>);
+    links.push(<a href={src.home}>{src.name}</a>);
   }
   return links;
 }
@@ -138,15 +149,17 @@ export interface PageData {
   wall: string;
   at: number;
   allowRefresh: boolean;
-  canonical: string;
+  origin: string;
+  path: string; // "/" or the path of an entry of PAGES
 }
 
 export function render(p: PageData): string {
+  const name = PAGES.find((q) => q.path === p.path)?.name;
   const page = (
     <html>
       <head>
-        <title>wire</title>
-        <link rel="canonical" href={p.canonical} />
+        <title>{name ? `${name} | wire` : "wire"}</title>
+        <link rel="canonical" href={p.origin + p.path} />
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <style dangerouslySetInnerHTML={{ __html: CSS }} />
@@ -164,11 +177,11 @@ export function render(p: PageData): string {
                     </a>
                   </td>
                   <td style="line-height:12pt;height:10px">
-                    <span class="pagetop"><b class="hnname"><a href="/">wire</a></b>{nav()}</span>
+                    <span class="pagetop"><b class="hnname"><a href="/">wire</a></b>{nav(p.path)}</span>
                   </td>
                   {p.allowRefresh && (
                     <td style="text-align:right;padding-right:4px">
-                      <span class="pagetop"><a href="/?refresh=1">refresh</a></span>
+                      <span class="pagetop"><a href={`${p.path}?refresh=1`}>refresh</a></span>
                     </td>
                   )}
                 </tr>
@@ -186,7 +199,7 @@ export function render(p: PageData): string {
           <tr>
             <td>
               <table cellspacing={0} cellpadding={0} border={0} width="100%" class="itemlist">
-                {p.rows.map((c) => <StoryRow c={c} at={p.at} />)}
+                {p.rows.map((c, i) => <StoryRow c={c} n={i + 1} at={p.at} />)}
               </table>
             </td>
           </tr>
@@ -197,7 +210,7 @@ export function render(p: PageData): string {
               <br />
               <div style="text-align:center;padding-bottom:16px">
                 <span class="yclinks">
-                  {SOURCES.map((s) => s.name).join(" | ")} | updated {p.wall}
+                  {sources()} | updated {p.wall}
                 </span>
               </div>
             </td>
@@ -207,4 +220,9 @@ export function render(p: PageData): string {
     </html>
   );
   return "<!doctype html>" + page.toString();
+}
+
+/** The HTML of every page of one refresh, by path. */
+export function renderAll(rows: Map<string, Row[]>, p: Omit<PageData, "rows" | "path">) {
+  return new Map([...rows].map(([path, r]) => [path, render({ ...p, rows: r, path })]));
 }

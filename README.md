@@ -28,6 +28,10 @@ Financial Times article shows `ft.com`. The line below the title links to
 each source that carried the story. If a source fails, you see the other
 sources and an `unavailable: …` line.
 
+The header links one page for each field: design, photo, small web, tech,
+and news. A page holds only the rows of its field. The front page holds all
+fields.
+
 ## Sources
 
 - **Design:** Creative Review, Creative Boom, Abduzeedo, Design Milk,

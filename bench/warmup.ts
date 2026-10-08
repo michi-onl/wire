@@ -3,8 +3,8 @@
 //   for i in $(seq 1 15); do npx tsx bench/warmup.ts; done
 import { readFileSync } from "node:fs";
 import { FILES } from "./files";
-import { items, rank } from "../src/build";
-import { render } from "../src/page";
+import { items, pages } from "../src/build";
+import { renderAll } from "../src/page";
 import { SOURCES, type Story } from "../src/rank";
 
 const dir = new URL("./bodies/", import.meta.url);
@@ -18,6 +18,6 @@ const startup = performance.now() - t;
 t = performance.now();
 const stories: Story[] = [];
 SOURCES.forEach((s, i) => stories.push(...items(s, bodies[i], at)));
-render({ rows: rank(stories, at), errors: [], wall: "00:00", at, allowRefresh: false,
-  canonical: "https://wire.michi.onl/" });
+renderAll(pages(stories, at), { errors: [], wall: "00:00", at, allowRefresh: false,
+  origin: "https://wire.michi.onl" });
 console.log(JSON.stringify({ startup, request: performance.now() - t }));

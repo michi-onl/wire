@@ -1,5 +1,5 @@
-import { items, rank } from "./build";
-import { render } from "./page";
+import { items, pages } from "./build";
+import { renderAll } from "./page";
 import { SOURCES, type Story } from "./rank";
 
 // A Worker on the free plan has 10 ms of CPU for each request. V8 compiles a
@@ -56,8 +56,8 @@ export function warm() {
       : s.name === "Tagesschau" ? TS : RSS;
     stories.push(...items(s, body, at));
   }
-  return render({ rows: rank(stories, at), errors: ["HN (Error: warm)"], wall: "12:00", at,
-    allowRefresh: true, canonical: "https://example.com/" });
+  return renderAll(pages(stories, at), { errors: ["HN (Error: warm)"], wall: "12:00", at,
+    allowRefresh: true, origin: "https://example.com" });
 }
 
 // On a laptop, one pass takes the first request from 18 ms to 7 ms. Each

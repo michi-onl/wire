@@ -2,12 +2,12 @@
 //
 //   npx vitest run
 import { describe, expect, test } from "vitest";
-import { empty, items } from "../src/build";
+import { empty, items, pages } from "../src/build";
 import { parseFeed, parseSitemap } from "../src/parse";
 import {
   allowed, cluster, keep, now, political, POL_DROP, POL_MAJOR, POL_NAMES, POL_STRONG,
   POL_WEAK, prominence, score, select, SOFT_FLOOR, SOFT_TOPICS, story, tokens, topic, wall,
-  canonical, SOURCES, W_FOCUS, type Row, type Story, type StoryExtra,
+  canonical, PAGES, SOURCES, W_FOCUS, type Row, type Story, type StoryExtra,
 } from "../src/rank";
 
 function item(title: string, source: string, url: string,
@@ -345,6 +345,33 @@ describe("select", () => {
     const rows = FILLER.map((t, i) => item(t, "Reuters", `https://www.reuters.com/world/${i}/`));
     expect(select(build(rows), 5)).toHaveLength(5);
     expect(select(build(rows), 99)).toHaveLength(FILLER.length);
+  });
+});
+
+describe("pages", () => {
+  const rows = [
+    item("Kerning secrets of a forgotten foundry", "HN", "https://example.com/kern"),
+    item("Leica unveils a rangefinder for winter", "HN", "https://example.com/rangefinder"),
+    item("Quarry blast shakes northern valley", "Reuters", "https://www.reuters.com/world/quarry/"),
+    item("Exoplanet atmosphere holds water vapour", "Ars Technica",
+      "https://arstechnica.com/science/2026/10/exoplanet/"),
+    item("Harvest festival draws record crowds", "SPIEGEL",
+      "https://www.spiegel.de/panorama/harvest/"),
+  ];
+  const got = pages(rows, now());
+
+  test("the front page holds every row", () => {
+    expect(got.get("/")).toHaveLength(rows.length);
+  });
+
+  test("a topic page holds only its topics", () => {
+    for (const p of PAGES) {
+      for (const c of got.get(p.path)!) expect(p.topics.has(c.topic!), c.title).toBe(true);
+    }
+    expect(got.get("/design")!.map((c) => c.title)).toEqual([rows[0].title]);
+    expect(got.get("/photo")!.map((c) => c.title)).toEqual([rows[1].title]);
+    expect(got.get("/news")!.map((c) => c.title)).toEqual([rows[2].title]);
+    expect(got.get("/tech")!.map((c) => c.title)).toEqual([rows[3].title]);
   });
 });
 

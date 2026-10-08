@@ -61,7 +61,6 @@ export interface Row {
   topic?: string;
   pol?: number;
   score?: number;
-  rank?: number;
 }
 
 export const now = () => Date.now() / 1000;
@@ -247,6 +246,18 @@ export const TOPICS: [string, RegExp, number][] = [
     + String.raw`|kultur|literatur)/`
     + String.raw`|theverge\.com/(entertainment|podcast|column|games`
     + String.raw`|report/[^/]*(music|podcast))/|arstechnica\.com/(gaming|culture)/`), -1.8],
+];
+// The links in the header. Each one is a page with the rows of its topics.
+// One topic alone is too small for a page: the batch of 2026-10-08 gave 4
+// science rows, 5 German rows, and 4 business rows. Soft news and "other"
+// stay on the front page. A name must match a field of FOCUS or a topic of
+// TOPICS. A name that matches neither gives an empty page, and nothing warns.
+export const PAGES: { path: string; name: string; topics: Set<string> }[] = [
+  { path: "/design", name: "design", topics: new Set(["design"]) },
+  { path: "/photo", name: "photo", topics: new Set(["photo"]) },
+  { path: "/smallweb", name: "small web", topics: new Set(["smallweb"]) },
+  { path: "/tech", name: "tech", topics: new Set(["tech", "science"]) },
+  { path: "/news", name: "news", topics: new Set(["world", "germany", "regional", "business"]) },
 ];
 export const TECH_WORDS = words(
   "ai|llm|gpu|chip|linux|rust|python|kernel|compiler|database|browser"

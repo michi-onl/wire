@@ -1,5 +1,5 @@
 import { parseFeed, parseSitemap } from "./parse";
-import { cluster, keep, score, select, SHOWN, type Row, type Source, type Story } from "./rank";
+import { cluster, keep, PAGES, score, select, SHOWN, type Row, type Source, type Story } from "./rank";
 
 /** The items that one source gives to the list. Read a wide window, drop what
  * the source must not contribute, and cap after that. A cap before the
@@ -16,11 +16,22 @@ export const empty = (src: Source, body: string) => parse(src, body).length === 
 const parse = (src: Source, body: string) =>
   (src.kind === "sitemap" ? parseSitemap : parseFeed)(body, src.name, src.window);
 
-/** The rows of the page, in order, from the items of all sources. */
-export function rank(stories: Story[], at: number): Row[] {
+function scored(stories: Story[], at: number): Row[] {
   const clusters = cluster(stories);
   for (const c of clusters) c.score = score(c, at);
-  const ranked = select(clusters, SHOWN);
-  ranked.forEach((c, i) => (c.rank = i + 1));
-  return ranked;
+  return clusters;
+}
+
+/** The rows of the front page, in order, from the items of all sources. */
+export const rank = (stories: Story[], at: number): Row[] => select(scored(stories, at), SHOWN);
+
+/** The rows of each page by path: the front page and one page for each entry
+ * of PAGES. wire scores the rows once for all pages. */
+export function pages(stories: Story[], at: number): Map<string, Row[]> {
+  const clusters = scored(stories, at);
+  const out = new Map([["/", select(clusters, SHOWN)]]);
+  for (const p of PAGES) {
+    out.set(p.path, select(clusters.filter((c) => p.topics.has(c.topic!)), SHOWN));
+  }
+  return out;
 }

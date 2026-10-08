@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import "./warm";
-import { empty, items, rank } from "./build";
-import { MANIFEST, render } from "./page";
-import { now, SOURCES, wall, type Source, type Story } from "./rank";
+import { empty, items, pages } from "./build";
+import { MANIFEST, renderAll } from "./page";
+import { now, PAGES, SOURCES, wall, type Source, type Story } from "./rank";
 
 type Env = { WIRE_ALLOW_REFRESH?: string };
 
@@ -57,20 +57,25 @@ interface Page {
   at: number; // seconds since the epoch, when wire built the page
 }
 
-// Two layers. `memory` lives as long as this Worker. The Cache API copy
-// serves a new Worker in the same data center. wire keeps nothing else.
-let memory: Page | null = null;
-let building: Promise<Page> | null = null;
+// Two layers, by path. `memory` lives as long as this Worker. The Cache API
+// copy serves a new Worker in the same data center. wire keeps nothing else.
+// One build writes every page, so a topic page costs no fetch of its own.
+const memory = new Map<string, Page>();
+let building: Promise<void> | null = null;
 
-async function cached(key: string): Promise<Page | null> {
-  if (memory) return memory;
-  const hit = await caches.default.match(key);
+const keyOf = (origin: string, path: string) => origin + "/__wire/page" + path;
+
+async function cached(origin: string, path: string): Promise<Page | null> {
+  const known = memory.get(path);
+  if (known) return known;
+  const hit = await caches.default.match(keyOf(origin, path));
   if (!hit) return null;
-  memory = { html: await hit.text(), at: Number(hit.headers.get("x-wire-built")) };
-  return memory;
+  const page = { html: await hit.text(), at: Number(hit.headers.get("x-wire-built")) };
+  memory.set(path, page);
+  return page;
 }
 
-async function build(key: string, origin: string, allowRefresh: boolean): Promise<Page> {
+async function build(origin: string, allowRefresh: boolean): Promise<void> {
   const results = await Promise.all(SOURCES.map(fetchOne));
   const at = now();
   const stories: Story[] = [];
@@ -85,23 +90,26 @@ async function build(key: string, origin: string, allowRefresh: boolean): Promis
     // on a normal refresh.
     if (!got.length && empty(src, body)) errors.push(`${src.name} (0 items)`);
   });
-  const html = render({ rows: rank(stories, at), errors, wall: wall(at * 1000), at,
-    allowRefresh, canonical: origin + "/" });
   if (errors.length) console.log(`unavailable: ${errors.join("; ")}`);
-  memory = { html, at };
-  await caches.default.put(key, new Response(html, {
-    headers: {
-      "content-type": "text/html; charset=UTF-8",
-      "cache-control": `max-age=${STALE_MAX}`,
-      "x-wire-built": String(at),
-    },
-  }));
-  return memory;
+  const puts: Promise<void>[] = [];
+  const all = renderAll(pages(stories, at), { errors, wall: wall(at * 1000), at, allowRefresh,
+    origin });
+  for (const [path, html] of all) {
+    memory.set(path, { html, at });
+    puts.push(caches.default.put(keyOf(origin, path), new Response(html, {
+      headers: {
+        "content-type": "text/html; charset=UTF-8",
+        "cache-control": `max-age=${STALE_MAX}`,
+        "x-wire-built": String(at),
+      },
+    })));
+  }
+  await Promise.all(puts);
 }
 
 /** One build at a time in this Worker. */
-function rebuild(key: string, origin: string, allowRefresh: boolean): Promise<Page> {
-  building ??= build(key, origin, allowRefresh).finally(() => (building = null));
+function rebuild(origin: string, allowRefresh: boolean): Promise<void> {
+  building ??= build(origin, allowRefresh).finally(() => (building = null));
   return building;
 }
 
@@ -110,20 +118,20 @@ const app = new Hono<{ Bindings: Env }>();
 app.get("/manifest.webmanifest", (c) =>
   c.body(JSON.stringify(MANIFEST), 200, { "content-type": "application/manifest+json" }));
 
-app.get("/", async (c) => {
+for (const path of ["/", ...PAGES.map((p) => p.path)]) app.get(path, async (c) => {
   const allowRefresh = c.env.WIRE_ALLOW_REFRESH === "1";
   // `refresh` is any value but "0". It forces one request to each source, so
   // it stays off unless WIRE_ALLOW_REFRESH is "1".
   const force = allowRefresh && (c.req.query("refresh") ?? "0") !== "0";
   const origin = new URL(c.req.url).origin;
-  const key = origin + "/__wire/page";
-  let page = force ? null : await cached(key);
+  let page = force ? null : await cached(origin, path);
   const age = page ? now() - page.at : Infinity;
   if (!page || age > STALE_MAX) {
-    page = await rebuild(key, origin, allowRefresh);
+    await rebuild(origin, allowRefresh);
+    page = memory.get(path)!;
   } else if (age > TTL) {
     // Show the stale page now, and build the next one after the answer.
-    c.executionCtx.waitUntil(rebuild(key, origin, allowRefresh).catch(console.error));
+    c.executionCtx.waitUntil(rebuild(origin, allowRefresh).catch(console.error));
   }
   return c.html(page.html);
 });
