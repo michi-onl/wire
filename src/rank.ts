@@ -446,8 +446,13 @@ export function story(title: string, url: string, source: string, published: num
   };
 }
 
+/** A link the page may render. A feed is third-party input, and a
+ * `javascript:` link in an href would run on wire's origin. */
+const WEB = /^https?:\/\//i;
+
 /** False for an item that must not reach the list at all. */
 export function keep(s: Story, at = now()): boolean {
+  if (!WEB.test(s.url) || (s.discuss !== null && !WEB.test(s.discuss))) return false;
   const rule = DROP[s.source];
   if (rule && rule.test(s.origin)) return false;
   if (DROP_TITLE.test(s.title)) return false;

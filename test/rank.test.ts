@@ -35,6 +35,15 @@ describe("canonical", () => {
 });
 
 describe("keep", () => {
+  test("drops a link that is not http or https", () => {
+    expect(keep(item("A design story", "HN", "javascript:alert(1)"))).toBe(false);
+    expect(keep(item("A design story", "HN", " JavaScript:alert(1)"))).toBe(false);
+    expect(keep(item("A design story", "HN", "data:text/html,x"))).toBe(false);
+    expect(keep(item("A design story", "Reddit", "https://example.com/a",
+      { discuss: "javascript:alert(1)" }))).toBe(false);
+    expect(keep(item("A design story", "HN", "https://example.com/a"))).toBe(true);
+  });
+
   test("drops Reuters sports", () => {
     expect(keep(item("Packers sink Jets in OT", "Reuters",
       "https://www.reuters.com/sports/nfl/packers-sink-jets/"))).toBe(false);
