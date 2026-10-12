@@ -23,13 +23,13 @@ function scored(stories: Story[], at: number): Row[] {
 }
 
 /** The rows of the front page, in order, from the items of all sources. */
-export const rank = (stories: Story[], at: number): Row[] => select(scored(stories, at), SHOWN);
+export const rank = (stories: Story[], at: number): Row[] => select(scored(stories, at), SHOWN, true);
 
 /** The rows of each page by path: the front page and one page for each entry
  * of PAGES. wire scores the rows once for all pages. */
 export function pages(stories: Story[], at: number): Map<string, Row[]> {
   const clusters = scored(stories, at);
-  const out = new Map([["/", select(clusters, SHOWN)]]);
+  const out = new Map([["/", select(clusters, SHOWN, true)]]);
   for (const p of PAGES) {
     out.set(p.path, select(clusters.filter((c) => p.topics.has(c.topic!)), SHOWN));
   }

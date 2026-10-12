@@ -138,6 +138,16 @@ the same topic cost more. `SOURCE_SPREAD` and `TOPIC_SPREAD` set the cost, and
 it stops at `MAX_SPREAD`, so a weak row cannot climb over a much better one.
 A row in `SOFT_TOPICS` starts below `SOFT_FLOOR`.
 
+The front page rations general news. A source with `general: true` is a
+source of general news: SPIEGEL, Tagesschau, and Reuters. `general()` is true
+for a row that only these sources carry, outside the focus fields. Such a row
+goes on the front page only when two sources carry it, or when its standing
+reaches `NEWS_LEAD`, 0.8. That is about the first fifth of an editor list. A
+flat source stands at 0.32, so a lone Reuters item never reaches it. The
+front page then holds at most `NEWS_MAX`, 3, of these rows. A topic page has
+no ration. In the batch of 2026-10-08, the ration took the general news on
+the front page from 17 rows to 2.
+
 ### Filters
 
 `keep()` drops an item before it reaches the list. It drops the `DROP` pattern

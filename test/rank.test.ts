@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 import { empty, items, pages } from "../src/build";
 import { parseFeed, parseSitemap } from "../src/parse";
 import {
-  allowed, cluster, keep, now, political, POL_DROP, POL_MAJOR, POL_NAMES, POL_STRONG,
+  allowed, cluster, keep, NEWS_MAX, now, political, POL_DROP, POL_MAJOR, POL_NAMES, POL_STRONG,
   POL_WEAK, prominence, score, select, SOFT_FLOOR, SOFT_TOPICS, story, tokens, topic, wall,
   canonical, PAGES, SOURCES, W_FOCUS, type Row, type Story, type StoryExtra,
 } from "../src/rank";
@@ -350,6 +350,32 @@ describe("select", () => {
       "one source took the whole page").toBeLessThan(10);
   });
 
+  test("the front page rations general news", () => {
+    const rows = FILLER.map((t, i) => item(t, "Tagesschau",
+      `https://www.tagesschau.de/ausland/r-${i}/`, { pos: 0, n: 10 }));
+    rows.push(item("Kerning secrets of a forgotten foundry", "HN", "https://example.com/kern"));
+    const picked = select(build(rows), 20, true);
+    expect(picked).toHaveLength(NEWS_MAX + 1);
+    expect(select(build(rows), 20)).toHaveLength(rows.length);
+  });
+
+  test("a minor general news row needs a second source for the front page", () => {
+    const lone = [item("Pipeline operator raises transit fees", "Reuters",
+      "https://www.reuters.com/business/pipeline/")];
+    expect(select(build(lone), 20, true)).toHaveLength(0);
+    const pair = [...lone, item("Pipeline operator raises transit fees", "SPIEGEL",
+      "https://www.reuters.com/business/pipeline/", { pos: 9, n: 10 })];
+    expect(select(build(pair), 20, true)).toHaveLength(1);
+  });
+
+  test("a wire row that HN carries is not rationed", () => {
+    const rows = [item("Satellite operator loses contact with probe", "Reuters",
+      "https://www.reuters.com/science/probe/"),
+    item("Satellite operator loses contact with probe", "HN",
+      "https://www.reuters.com/science/probe/")];
+    expect(select(build(rows), 20, true)).toHaveLength(1);
+  });
+
   test("it returns what it is asked for", () => {
     const rows = FILLER.map((t, i) => item(t, "Reuters", `https://www.reuters.com/world/${i}/`));
     expect(select(build(rows), 5)).toHaveLength(5);
@@ -369,8 +395,9 @@ describe("pages", () => {
   ];
   const got = pages(rows, now());
 
-  test("the front page holds every row", () => {
-    expect(got.get("/")).toHaveLength(rows.length);
+  test("the front page holds every row but a minor general news row", () => {
+    expect(got.get("/")!.map((c) => c.title)).not.toContain(rows[2].title);
+    expect(got.get("/")).toHaveLength(rows.length - 1);
   });
 
   test("a topic page holds only its topics", () => {

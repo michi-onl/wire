@@ -18,6 +18,10 @@ photography, or small-web story gets a boost that outweighs about a day of
 age. After wire picks a row, the next row from the same source costs more,
 so one source cannot fill the page.
 
+The front page shows at most three rows of general news from SPIEGEL,
+Tagesschau, and Reuters. Such a row must have two sources, or an editor must
+put it near the top of the list. The news page shows all general news.
+
 A political story moves down the list. wire drops a story about an election,
 a party, or a campaign unless three sources carry it. It drops each story
 that names the MAGA movement or its people and outlets, such as Trump or

@@ -40,7 +40,8 @@ renders the page. `src/warm.ts` warms V8 before the first request.
 2. Give `DROP` a rule for the noise of the feed: sport, video, podcasts, and
    sponsored posts. Set `window` wide enough that `max` items survive `DROP`.
 3. Give the source a `topic` if it covers one focus field. Otherwise give
-   `TOPICS` a rule for its sections.
+   `TOPICS` a rule for its sections. Give a source of general news
+   `general: true`, so the front page rations its rows.
 4. Add the body to `bench/bodies/` and its name to `bench/files.ts`. Add a
    warm body to `src/warm.ts` when the feed format is new.
 5. Measure the first request and a warm request (see CPU). Lower `max` and

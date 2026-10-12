@@ -29,6 +29,7 @@ export interface Source {
   authority: number;
   home: string;
   topic?: string; // the topic of every item, for a source that covers one field
+  general?: boolean; // a source of general news, which the front page rations
 }
 
 export interface Story {
@@ -89,6 +90,13 @@ export const SOFT_FLOOR = 8; // soft news starts below this row, whatever it sco
 export const SOFT_TOPICS = new Set(["soft", "celebrity"]);
 export const POL_DROP = 0.6; // a row at this politics confidence or above leaves the list,
 export const POL_MAJOR = 3; // unless this many sources carry it
+// General news is not why the reader opens wire. The front page shows only a
+// few rows of it, and only a row that two sources carry or that an editor
+// leads with. The /news page shows all of it.
+export const NEWS_MAX = 3; // rows of general news on the front page
+// The standing of an item in the first fifth of an editor list. A flat source
+// stands at 0.32 and never reaches it alone.
+export const NEWS_LEAD = 0.8;
 
 export const SOURCES: Source[] = [
   { name: "HN", url: "https://hnrss.org/frontpage", kind: "feed",
@@ -102,7 +110,7 @@ export const SOURCES: Source[] = [
     kind: "feed", max: 8, window: 15, prominence: "position", authority: 0.55,
     home: "https://www.reddit.com/r/graphic_design+typography+photography+neocities+SmallWeb/" },
   { name: "SPIEGEL", url: "https://www.spiegel.de/schlagzeilen/tops/index.rss",
-    kind: "feed", max: 10, window: 30, prominence: "position", authority: 0.95,
+    kind: "feed", max: 10, window: 30, prominence: "position", authority: 0.95, general: true,
     home: "https://www.spiegel.de/" },
   // The feed is in time order, so the position measures only age, and the
   // age term already charges age. The homepage has an editor order, but it is
@@ -112,13 +120,13 @@ export const SOURCES: Source[] = [
     home: "https://www.theverge.com/" },
   { name: "Reuters",
     url: "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
-    kind: "sitemap", max: 10, window: 60, prominence: "flat", authority: 0.9,
+    kind: "sitemap", max: 10, window: 60, prominence: "flat", authority: 0.9, general: true,
     home: "https://www.reuters.com/" },
   // The homepage feed is in editorial order: the lead item comes first, and
   // video, livestream, and broadcast items follow. DROP removes those. The
   // feed also lists sportschau.de items, thus DROP removes that host too.
   { name: "Tagesschau", url: "https://www.tagesschau.de/index~rss2.xml",
-    kind: "feed", max: 10, window: 30, prominence: "position", authority: 0.9,
+    kind: "feed", max: 10, window: 30, prominence: "position", authority: 0.9, general: true,
     home: "https://www.tagesschau.de/" },
   // The design and photography magazines publish in time order. No editor
   // chose a top item, so each item starts flat, as a wire does.
@@ -174,6 +182,7 @@ export const HOMES: Record<string, string> =
   Object.fromEntries(SOURCES.map((s) => [s.name, s.home]));
 export const SOURCE_TOPIC: Record<string, string> =
   Object.fromEntries(SOURCES.flatMap((s) => (s.topic ? [[s.name, s.topic]] : [])));
+export const GENERAL = new Set(SOURCES.flatMap((s) => (s.general ? [s.name] : [])));
 
 // A source drops an item when the URL matches. Reuters mirrors its wire in
 // other languages and fills the sitemap with machine-written game recaps.
@@ -674,16 +683,29 @@ export function allowed(c: Row): boolean {
   return c.sources.length >= POL_MAJOR && !banned(c);
 }
 
+const FOCUS_NAMES = new Set(FOCUS.map(([name]) => name));
+
+/** True for a row that only the general news sources carry, outside the
+ * focus fields. A row that HN or a magazine also carries has passed a
+ * filter of the reader's fields, so it is not rationed. */
+export const general = (c: Row) =>
+  !FOCUS_NAMES.has(c.topic!) && c.sources.every((s) => GENERAL.has(s));
+
+/** True for a general news row that may go on the front page: two sources
+ * carry it, or an editor leads with it. */
+export const headline = (c: Row) => c.sources.length >= 2 || c.prom >= NEWS_LEAD;
+
 /** Take the best row, then make the next row of the same source or topic
  * cost more. The page stays mixed instead of one source in a block. A row
  * that reads as party politics does not reach the page, unless it is major
- * news. */
-export function select(clusters: Row[], n: number): Row[] {
+ * news. On the front page, general news gets at most NEWS_MAX rows. */
+export function select(clusters: Row[], n: number, front = false): Row[] {
   // The drop sits here and not in keep(). keep() reads one item, and the news
   // sources all carry politics, thus a drop there removes one copy and
   // cluster() then builds the same row again from the others.
-  const pool = clusters.filter(allowed)
+  const pool = clusters.filter((c) => allowed(c) && !(front && general(c) && !headline(c)))
     .sort((a, b) => b.score! - a.score!);
+  let news = front ? NEWS_MAX : Infinity;
   const picked: Row[] = [];
   const usedSrc = new Map<string, number>();
   const usedTop = new Map<string, number>();
@@ -709,6 +731,7 @@ export function select(clusters: Row[], n: number): Row[] {
       }
     }
     const [best] = pool.splice(bestAt, 1);
+    if (general(best) && news-- <= 0) continue;
     usedSrc.set(best.source, (usedSrc.get(best.source) ?? 0) + 1);
     usedTop.set(best.topic!, (usedTop.get(best.topic!) ?? 0) + 1);
     picked.push(best);
