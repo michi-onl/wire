@@ -46,9 +46,9 @@ variable.
 | 35mmc           | `35mmc.com/feed/`                                            | feed    | flat       | photo    |
 | Bear Blog       | `bearblog.dev/discover/feed/`                                | feed    | position   | smallweb |
 | Kagi Liked      | `kagi.com/smallweb/liked`                                    | feed    | flat       | smallweb |
-| Kagi Comics     | `kagi.com/api/v1/smallweb/feed/?comic&limit=8`               | feed    | flat       | smallweb |
-| Kagi YouTube    | `kagi.com/api/v1/smallweb/feed/?yt&limit=12`                 | feed    | flat       |          |
-| Kagi GitHub     | `kagi.com/api/v1/smallweb/feed/?gh&limit=8`                  | feed    | flat       | tech     |
+| Kagi Comics     | `kagi.com/smallweb/feed?comic`                               | feed    | flat       | smallweb |
+| Kagi YouTube    | `kagi.com/smallweb/feed?yt`                                  | feed    | flat       |          |
+| Kagi GitHub     | `kagi.com/smallweb/feed?gh`                                  | feed    | flat       | tech     |
 | 404 Media       | `404media.co/rss/`                                           | feed    | flat       |          |
 | Ars Technica    | `feeds.arstechnica.com/arstechnica/index`                    | feed    | flat       | by section |
 
@@ -67,10 +67,10 @@ Each source has a `window` and a `max`. wire reads `window` items, drops what
 empty a noisy source, so wire filters first. The Reuters sitemap holds about
 50 items, and machines write 30 of them as game recaps, so its window is 60.
 
-The Kagi Small Web feeds hold about 300 items without a `limit`. The `limit`
-in the address keeps each body near the window. The liked feed takes no
-`limit`, so wire reads about 120 entries from it. About half of the YouTube
-feed is Shorts, and `DROP` removes them, so its window is 12 for a `max` of 4.
+The Kagi Small Web feeds hold 120 to 250 entries, and wire parses all of
+them. The addresses below `kagi.com/api/v1/` take a `limit`, but they time
+out from a Worker. About half of the YouTube feed is Shorts, and `DROP`
+removes them, so its window is 12 for a `max` of 4.
 
 The Verge feed holds about 10 items, in order of time, so its prominence is
 flat. The homepage of The Verge has an editor order, but it is 1 MB of HTML,

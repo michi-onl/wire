@@ -169,17 +169,20 @@ export const SOURCES: Source[] = [
   { name: "Kagi Liked", url: "https://kagi.com/smallweb/liked", kind: "feed",
     max: 6, window: 12, prominence: "flat", authority: 0.85, topic: "smallweb",
     home: "https://kagi.com/smallweb/" },
-  // The other Kagi feeds take a `limit`. Without it, a body holds about 300
-  // entries and 300 KB. The webcomics of the index are personal sites too.
-  { name: "Kagi Comics", url: "https://kagi.com/api/v1/smallweb/feed/?comic&limit=8",
+  // The other Kagi feeds also have an address below /api/v1/ that takes a
+  // `limit`. From a Worker, that address timed out after 20 seconds, and from
+  // a laptop it answered in 0.2 seconds. Thus wire reads the full feed: 180 to
+  // 250 entries and 65 to 130 KB. The webcomics of the index are personal
+  // sites too.
+  { name: "Kagi Comics", url: "https://kagi.com/smallweb/feed?comic",
     kind: "feed", max: 2, window: 8, prominence: "flat", authority: 0.7, topic: "smallweb",
     home: "https://kagi.com/smallweb/?comic" },
   // Small YouTube channels and new GitHub projects. Neither covers one field,
   // so the title words and the TOPICS rules give the topic.
-  { name: "Kagi YouTube", url: "https://kagi.com/api/v1/smallweb/feed/?yt&limit=12",
+  { name: "Kagi YouTube", url: "https://kagi.com/smallweb/feed?yt",
     kind: "feed", max: 4, window: 12, prominence: "flat", authority: 0.7,
     home: "https://kagi.com/smallweb/?yt" },
-  { name: "Kagi GitHub", url: "https://kagi.com/api/v1/smallweb/feed/?gh&limit=8",
+  { name: "Kagi GitHub", url: "https://kagi.com/smallweb/feed?gh",
     kind: "feed", max: 4, window: 8, prominence: "flat", authority: 0.75,
     home: "https://kagi.com/smallweb/?gh" },
   // An independent site on internet culture, security, and the platforms.
