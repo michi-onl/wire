@@ -136,6 +136,13 @@ describe("keep", () => {
     expect(keep(item("Gaussian splatting in five minutes", "Kagi YouTube",
       "https://www.youtube.com/watch?v=YwNO3qLLe2U"))).toBe(true);
   });
+
+  test("drops a Flash game of the Web Design Museum, not a site", () => {
+    expect(keep(item("Hive Hero in 2009", "Web Design Museum",
+      "https://www.webdesignmuseum.org/flash-games/hive-hero-in-2009"))).toBe(false);
+    expect(keep(item("VideoLAN in 2001", "Web Design Museum",
+      "https://www.webdesignmuseum.org/gallery/videolan-in-2001"))).toBe(true);
+  });
 });
 
 describe("cluster", () => {

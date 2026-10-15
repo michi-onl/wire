@@ -39,7 +39,7 @@ fields.
 ## Sources
 
 - **Design:** Creative Review, Creative Boom, Abduzeedo, Design Milk,
-  It's Nice That
+  It's Nice That, Web Design Museum
 - **Photography:** PetaPixel, Fstoppers, 35mmc
 - **Small web:** Bear Blog, Kagi Small Web (liked posts, webcomics, GitHub
   projects, and small YouTube channels), and Reddit for design, photography,

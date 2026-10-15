@@ -22,7 +22,7 @@ runtime of Cloudflare, on your computer. It needs no Cloudflare account.
 `npx wrangler dev --var WIRE_ALLOW_REFRESH:1`.
 
 `/?refresh=1` bypasses the five-minute cache and sends one request to each
-source. A stranger who calls it in a loop sends that traffic to 21 sources, so
+source. A stranger who calls it in a loop sends that traffic to 22 sources, so
 wire turns it off by default and hides the refresh link until you set the
 variable.
 
@@ -41,6 +41,7 @@ variable.
 | Abduzeedo       | `abduzeedo.com/rss.xml`                                      | feed    | flat       | design   |
 | Design Milk     | `design-milk.com/feed/`                                      | feed    | flat       | design   |
 | It's Nice That  | `itsnicethat.com/articles.atom`                              | feed    | flat       | design   |
+| Web Design Museum | `webdesignmuseum.org/feed/`                                | feed    | flat       | design   |
 | PetaPixel       | `petapixel.com/feed/`                                        | feed    | flat       | photo    |
 | Fstoppers       | `fstoppers.com/rss.xml`                                      | feed    | flat       | photo    |
 | 35mmc           | `35mmc.com/feed/`                                            | feed    | flat       | photo    |

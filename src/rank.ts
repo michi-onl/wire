@@ -146,6 +146,13 @@ export const SOURCES: Source[] = [
   { name: "It's Nice That", url: "https://www.itsnicethat.com/articles.atom", kind: "feed",
     max: 4, window: 10, prominence: "flat", authority: 0.95, topic: "design",
     home: "https://www.itsnicethat.com/" },
+  // An archive of old websites. Each item is one site in one year, such as
+  // "VideoLAN in 2009", and a curator adds 15 to 30 a day in time order. The
+  // feed holds 500 items and 265 KB. A site in several years gives similar
+  // titles, and cluster() joins them into one row.
+  { name: "Web Design Museum", url: "https://www.webdesignmuseum.org/feed/", kind: "feed",
+    max: 3, window: 12, prominence: "flat", authority: 0.75, topic: "design",
+    home: "https://www.webdesignmuseum.org/" },
   { name: "PetaPixel", url: "https://petapixel.com/feed/", kind: "feed",
     max: 6, window: 10, prominence: "flat", authority: 1.0, topic: "photo",
     home: "https://petapixel.com/" },
@@ -224,6 +231,8 @@ export const DROP: Record<string, RegExp> = {
   // The weekly podcast and the "Behind the Blog" letter repeat the reports of
   // the week. The rule reads the start of the path: a report about a podcast
   // of another publisher, such as cbc-podcast-…, stays.
+  // The Flash games of the archive are Disney and kids' games, not design.
+  "Web Design Museum": re(String.raw`webdesignmuseum\.org/flash-games/`, "i"),
   "404 Media": re(String.raw`404media\.co/(podcast-|behind-the-blog)`, "i"),
   // About half of the YouTube feed is Shorts: a clip with a title and no story.
   "Kagi YouTube": re(String.raw`youtube\.com/shorts/`, "i"),
