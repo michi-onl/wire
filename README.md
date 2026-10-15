@@ -41,7 +41,9 @@ fields.
 - **Design:** Creative Review, Creative Boom, Abduzeedo, Design Milk,
   It's Nice That
 - **Photography:** PetaPixel, Fstoppers, 35mmc
-- **Small web:** Bear Blog, and Reddit for design, photography, and Neocities
+- **Small web:** Bear Blog, Kagi Small Web (liked posts, webcomics, GitHub
+  projects, and small YouTube channels), and Reddit for design, photography,
+  and Neocities
 - **News:** Hacker News, SPIEGEL, Tagesschau, Reuters, The Verge, 404 Media,
   Ars Technica
 

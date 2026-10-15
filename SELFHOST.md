@@ -22,7 +22,7 @@ runtime of Cloudflare, on your computer. It needs no Cloudflare account.
 `npx wrangler dev --var WIRE_ALLOW_REFRESH:1`.
 
 `/?refresh=1` bypasses the five-minute cache and sends one request to each
-source. A stranger who calls it in a loop sends that traffic to 17 sources, so
+source. A stranger who calls it in a loop sends that traffic to 21 sources, so
 wire turns it off by default and hides the refresh link until you set the
 variable.
 
@@ -45,6 +45,10 @@ variable.
 | Fstoppers       | `fstoppers.com/rss.xml`                                      | feed    | flat       | photo    |
 | 35mmc           | `35mmc.com/feed/`                                            | feed    | flat       | photo    |
 | Bear Blog       | `bearblog.dev/discover/feed/`                                | feed    | position   | smallweb |
+| Kagi Liked      | `kagi.com/smallweb/liked`                                    | feed    | flat       | smallweb |
+| Kagi Comics     | `kagi.com/api/v1/smallweb/feed/?comic&limit=8`               | feed    | flat       | smallweb |
+| Kagi YouTube    | `kagi.com/api/v1/smallweb/feed/?yt&limit=12`                 | feed    | flat       |          |
+| Kagi GitHub     | `kagi.com/api/v1/smallweb/feed/?gh&limit=8`                  | feed    | flat       | tech     |
 | 404 Media       | `404media.co/rss/`                                           | feed    | flat       |          |
 | Ars Technica    | `feeds.arstechnica.com/arstechnica/index`                    | feed    | flat       | by section |
 
@@ -62,6 +66,11 @@ Each source has a `window` and a `max`. wire reads `window` items, drops what
 `DROP` rejects, and keeps `max` of the rest. A cap before the filter can
 empty a noisy source, so wire filters first. The Reuters sitemap holds about
 50 items, and machines write 30 of them as game recaps, so its window is 60.
+
+The Kagi Small Web feeds hold about 300 items without a `limit`. The `limit`
+in the address keeps each body near the window. The liked feed takes no
+`limit`, so wire reads about 120 entries from it. About half of the YouTube
+feed is Shorts, and `DROP` removes them, so its window is 12 for a `max` of 4.
 
 The Verge feed holds about 10 items, in order of time, so its prominence is
 flat. The homepage of The Verge has an editor order, but it is 1 MB of HTML,
@@ -104,8 +113,10 @@ agreement from a second source outweighs about three hours of age.
 
 `prominence()` gives 0 to 1 for the standing of an item on its own front page.
 HN uses the points. Reddit, SPIEGEL, Tagesschau, and Bear Blog use the
-position. Reuters, The Verge, 404 Media, Ars Technica, and the magazines
-publish in time order with no editor rank, so their items get a flat 0.32.
+position. Reuters, The Verge, 404 Media, Ars Technica, the Kagi feeds, and the
+magazines publish in time order with no editor rank, so their items get a flat
+0.32. Kagi lists the liked posts in the order of the likes, so that order
+measures time too.
 
 ### Focus
 
@@ -160,6 +171,7 @@ of its source, a live blog, and anything older than `MAX_AGE`, 72 hours. The
 - the deals posts of The Verge in any section
 - the podcast and the "Behind the Blog" letter of 404 Media
 - the sponsored posts and media partnerships of It's Nice That
+- the YouTube Shorts of Kagi YouTube
 - an evergreen service page in a top list
 
 `select()` drops a row of party politics, unless `POL_MAJOR` sources carry
@@ -206,7 +218,8 @@ to a Reuters page that gives a 401. YouTube subscriptions need per-channel IDs
 or login cookies.
 
 No Neocities feed carries daily news. The Neocities blog posts about once a
-year. r/neocities and Bear Blog are the closest daily sources.
+year. r/neocities, Bear Blog, and the liked posts of Kagi Small Web are the
+closest daily sources.
 
 ## Deploy
 

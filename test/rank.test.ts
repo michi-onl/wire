@@ -129,6 +129,13 @@ describe("keep", () => {
       "https://www.itsnicethat.com/articles/museum-brewery-partnership-graphic-design-project-081026")))
       .toBe(true);
   });
+
+  test("drops a YouTube Short, not a full video", () => {
+    expect(keep(item("Cleaning the office", "Kagi YouTube",
+      "https://www.youtube.com/shorts/wOA0KS1kxG0"))).toBe(false);
+    expect(keep(item("Gaussian splatting in five minutes", "Kagi YouTube",
+      "https://www.youtube.com/watch?v=YwNO3qLLe2U"))).toBe(true);
+  });
 });
 
 describe("cluster", () => {
@@ -228,10 +235,18 @@ describe("score", () => {
       ["Design Milk", "https://design-milk.com/a/", "design"],
       ["PetaPixel", "https://petapixel.com/2026/10/01/a/", "photo"],
       ["35mmc", "https://www.35mmc.com/01/10/2026/a/", "photo"],
-      ["Bear Blog", "https://someone.example/post/", "smallweb"]]) {
+      ["Bear Blog", "https://someone.example/post/", "smallweb"],
+      ["Kagi Liked", "https://someone.example/notes/a/", "smallweb"],
+      ["Kagi Comics", "https://strip.example/comic/12/", "smallweb"]]) {
       expect(topic(cluster([item("Plain words", source, url)])[0]), source)
         .toEqual([field, W_FOCUS]);
     }
+  });
+
+  test("a GitHub project counts as tech", () => {
+    const c = cluster([item("Custom server to revive old robots", "Kagi GitHub",
+      "https://github.com/vacuula/vacuula")])[0];
+    expect(topic(c)[0]).toBe("tech");
   });
 
   test("an Ars section gives its topic", () => {

@@ -5,5 +5,6 @@ export const FILES: Record<string, string> = {
   "Creative Review": "creativereview", "Creative Boom": "creativeboom", Abduzeedo: "abduzeedo",
   "Design Milk": "designmilk", "It's Nice That": "itsnicethat", PetaPixel: "petapixel", Fstoppers: "fstoppers",
   "35mmc": "35mmc", "Bear Blog": "bearblog", "404 Media": "404media",
-  "Ars Technica": "arstechnica",
+  "Ars Technica": "arstechnica", "Kagi Liked": "kagiliked", "Kagi Comics": "kagicomic",
+  "Kagi YouTube": "kagiyt", "Kagi GitHub": "kagigh",
 };

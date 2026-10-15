@@ -74,7 +74,7 @@ export const GRAVITY = 1.15; // bits of decay for each doubling of the age
 // story that several sources carry.
 export const AGE_FLOOR = 4.0;
 export const MAX_AGE = 72.0; // hours; an older item leaves the list
-export const SHOWN = 40; // rows on the page
+export const SHOWN = 50; // rows on the page
 
 export const W_PROM = 2.2; // standing inside its own source
 export const W_CORR = 1.9; // independent sources on the same story
@@ -162,6 +162,26 @@ export const SOURCES: Source[] = [
   { name: "Bear Blog", url: "https://bearblog.dev/discover/feed/", kind: "feed",
     max: 6, window: 12, prominence: "position", authority: 0.85, topic: "smallweb",
     home: "https://bearblog.dev/discover/" },
+  // Kagi Small Web indexes personal sites. Kagi readers like a post there,
+  // and this feed lists the liked posts in the order of the likes, so the
+  // position measures only time. This address takes no `limit`, thus the
+  // body holds about 120 entries.
+  { name: "Kagi Liked", url: "https://kagi.com/smallweb/liked", kind: "feed",
+    max: 6, window: 12, prominence: "flat", authority: 0.85, topic: "smallweb",
+    home: "https://kagi.com/smallweb/" },
+  // The other Kagi feeds take a `limit`. Without it, a body holds about 300
+  // entries and 300 KB. The webcomics of the index are personal sites too.
+  { name: "Kagi Comics", url: "https://kagi.com/api/v1/smallweb/feed/?comic&limit=8",
+    kind: "feed", max: 2, window: 8, prominence: "flat", authority: 0.7, topic: "smallweb",
+    home: "https://kagi.com/smallweb/?comic" },
+  // Small YouTube channels and new GitHub projects. Neither covers one field,
+  // so the title words and the TOPICS rules give the topic.
+  { name: "Kagi YouTube", url: "https://kagi.com/api/v1/smallweb/feed/?yt&limit=12",
+    kind: "feed", max: 4, window: 12, prominence: "flat", authority: 0.7,
+    home: "https://kagi.com/smallweb/?yt" },
+  { name: "Kagi GitHub", url: "https://kagi.com/api/v1/smallweb/feed/?gh&limit=8",
+    kind: "feed", max: 4, window: 8, prominence: "flat", authority: 0.75,
+    home: "https://kagi.com/smallweb/?gh" },
   // An independent site on internet culture, security, and the platforms.
   // It publishes in time order, so no item starts at the top.
   { name: "404 Media", url: "https://www.404media.co/rss/", kind: "feed",
@@ -202,6 +222,8 @@ export const DROP: Record<string, RegExp> = {
   // the week. The rule reads the start of the path: a report about a podcast
   // of another publisher, such as cbc-podcast-…, stays.
   "404 Media": re(String.raw`404media\.co/(podcast-|behind-the-blog)`, "i"),
+  // About half of the YouTube feed is Shorts: a clip with a title and no story.
+  "Kagi YouTube": re(String.raw`youtube\.com/shorts/`, "i"),
   // The bare "tagesschau" also matches each broadcast: tagesschau_20_uhr,
   // tagesschau_in_100_sekunden, and the easy-language and sign-language forms.
   Tagesschau: re(String.raw`tagesschau\.de/(video|multimedia|tagesthemen|tagesschau)`
@@ -248,7 +270,7 @@ export const TOPICS: [string, RegExp, number][] = [
     + String.raw`|theverge\.com/science/|arstechnica\.com/(science|space|health)/`), 0.35],
   ["tech", re(String.raw`theverge\.com/(tech|ai-artificial-intelligence|cyber-security)/`
     + String.raw`|arstechnica\.com/(gadgets|security|tech-policy|information-technology`
-    + String.raw`|ai|apple|google|cars)/`), 0.35],
+    + String.raw`|ai|apple|google|cars)/|github\.com/`), 0.35],
   ["business", re(String.raw`reuters\.com/(business|markets|technology)/`), 0.35],
   ["celebrity", re(String.raw`spiegel\.de/panorama/leute/|/celebrity/`), -2.5],
   ["soft", re(String.raw`spiegel\.de/(familie|stil|reise|gesundheit|auto|panorama`
