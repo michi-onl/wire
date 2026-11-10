@@ -42,8 +42,8 @@ fields.
   It's Nice That, Web Design Museum
 - **Photography:** PetaPixel, Fstoppers, 35mmc
 - **Small web:** Bear Blog, Kagi Small Web (liked posts, webcomics, GitHub
-  projects, and small YouTube channels), and Reddit for design, photography,
-  and Neocities
+  projects, and small YouTube channels), Math with Bad Drawings, and Reddit
+  for design, photography, and Neocities
 - **News:** Hacker News, SPIEGEL, Tagesschau, Reuters, The Verge, 404 Media,
   Ars Technica
 

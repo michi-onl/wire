@@ -22,7 +22,7 @@ runtime of Cloudflare, on your computer. It needs no Cloudflare account.
 `npx wrangler dev --var WIRE_ALLOW_REFRESH:1`.
 
 `/?refresh=1` bypasses the five-minute cache and sends one request to each
-source. A stranger who calls it in a loop sends that traffic to 22 sources, so
+source. A stranger who calls it in a loop sends that traffic to 23 sources, so
 wire turns it off by default and hides the refresh link until you set the
 variable.
 
@@ -48,6 +48,7 @@ variable.
 | Bear Blog       | `bearblog.dev/discover/feed/`                                | feed    | position   | smallweb |
 | Kagi Liked      | `kagi.com/smallweb/liked`                                    | feed    | flat       | smallweb |
 | Kagi Comics     | `kagi.com/smallweb/feed?comic`                               | feed    | flat       | smallweb |
+| Math with Bad Drawings | `mathwithbaddrawings.com/feed/`                       | feed    | flat       | smallweb |
 | Kagi YouTube    | `kagi.com/smallweb/feed?yt`                                  | feed    | flat       |          |
 | Kagi GitHub     | `kagi.com/smallweb/feed?gh`                                  | feed    | flat       | tech     |
 | 404 Media       | `404media.co/rss/`                                           | feed    | flat       |          |
@@ -114,8 +115,8 @@ agreement from a second source outweighs about three hours of age.
 
 `prominence()` gives 0 to 1 for the standing of an item on its own front page.
 HN uses the points. Reddit, SPIEGEL, Tagesschau, and Bear Blog use the
-position. Reuters, The Verge, 404 Media, Ars Technica, the Kagi feeds, and the
-magazines publish in time order with no editor rank, so their items get a flat
+position. Reuters, The Verge, 404 Media, Ars Technica, the Kagi feeds, the
+blogs, and the magazines publish in time order with no editor rank, so their items get a flat
 0.32. Kagi lists the liked posts in the order of the likes, so that order
 measures time too.
 

@@ -7,5 +7,6 @@ export const FILES: Record<string, string> = {
   "Web Design Museum": "webdesignmuseum", PetaPixel: "petapixel", Fstoppers: "fstoppers",
   "35mmc": "35mmc", "Bear Blog": "bearblog", "404 Media": "404media",
   "Ars Technica": "arstechnica", "Kagi Liked": "kagiliked", "Kagi Comics": "kagicomic",
+  "Math with Bad Drawings": "mathwithbaddrawings",
   "Kagi YouTube": "kagiyt", "Kagi GitHub": "kagigh",
 };

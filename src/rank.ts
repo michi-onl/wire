@@ -184,6 +184,13 @@ export const SOURCES: Source[] = [
   { name: "Kagi Comics", url: "https://kagi.com/smallweb/feed?comic",
     kind: "feed", max: 2, window: 8, prominence: "flat", authority: 0.7, topic: "smallweb",
     home: "https://kagi.com/smallweb/?comic" },
+  // The personal blog of Ben Orlin: math in drawings, in time order. The feed
+  // holds 10 posts with the full text, 158 KB. In 2026-11 the newest post was
+  // 8 months old, so the source puts a row on the page only in the 72 hours
+  // after a new post.
+  { name: "Math with Bad Drawings", url: "https://mathwithbaddrawings.com/feed/",
+    kind: "feed", max: 1, window: 2, prominence: "flat", authority: 0.75, topic: "smallweb",
+    home: "https://mathwithbaddrawings.com/" },
   // Small YouTube channels and new GitHub projects. Neither covers one field,
   // so the title words and the TOPICS rules give the topic.
   { name: "Kagi YouTube", url: "https://kagi.com/smallweb/feed?yt",
