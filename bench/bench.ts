@@ -4,17 +4,10 @@
 //
 //   npx tsx bench/bench.ts          warm: many runs in one process, median
 //   npx tsx bench/bench.ts --cold   one run in a fresh process, as a new isolate
-import { readFileSync } from "node:fs";
-import { FILES } from "./files";
+import { AT as at, BODIES as bodies } from "./files";
 import { items, pages } from "../src/build";
 import { renderAll } from "../src/page";
 import { SOURCES, type Story } from "../src/rank";
-
-const dir = new URL("./bodies/", import.meta.url);
-const bodies = SOURCES.map((s) => readFileSync(new URL(`${FILES[s.name]}.xml`, dir), "utf8"));
-// The batch was saved at one moment. Rank it at that moment, so no item ages
-// out of MAX_AGE between two runs of the bench.
-const at = Date.parse(readFileSync(new URL("fetched_at.txt", dir), "utf8").trim()) / 1000;
 
 function once() {
   const t: Record<string, number> = {};

@@ -16,7 +16,7 @@ export const empty = (src: Source, body: string) => parse(src, body).length === 
 const parse = (src: Source, body: string) =>
   (src.kind === "sitemap" ? parseSitemap : parseFeed)(body, src.name, src.window);
 
-function scored(stories: Story[], at: number): Row[] {
+export function scored(stories: Story[], at: number): Row[] {
   const clusters = cluster(stories);
   for (const c of clusters) c.score = score(c, at);
   return clusters;

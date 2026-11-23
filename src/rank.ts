@@ -211,15 +211,7 @@ export const SOURCES: Source[] = [
     home: "https://arstechnica.com/" },
 ];
 
-export const AUTHORITY: Record<string, number> =
-  Object.fromEntries(SOURCES.map((s) => [s.name, s.authority]));
-export const PROM_MODE: Record<string, Prominence> =
-  Object.fromEntries(SOURCES.map((s) => [s.name, s.prominence]));
-export const HOMES: Record<string, string> =
-  Object.fromEntries(SOURCES.map((s) => [s.name, s.home]));
-export const SOURCE_TOPIC: Record<string, string> =
-  Object.fromEntries(SOURCES.flatMap((s) => (s.topic ? [[s.name, s.topic]] : [])));
-export const GENERAL = new Set(SOURCES.flatMap((s) => (s.general ? [s.name] : [])));
+export const BY_NAME: Record<string, Source> = Object.fromEntries(SOURCES.map((s) => [s.name, s]));
 
 // A source drops an item when the URL matches. Reuters mirrors its wire in
 // other languages and fills the sitemap with machine-written game recaps.
@@ -511,7 +503,7 @@ export function keep(s: Story, at = now()): boolean {
 
 /** How high the item stands inside its own source, from 0 to 1. */
 export function prominence(s: Story): number {
-  const mode = PROM_MODE[s.source];
+  const mode = BY_NAME[s.source]?.prominence;
   if (mode === "points") return Math.min(1.0, (Math.max(0, s.points ?? 0) / 200) ** 0.6);
   if (mode === "position") return 1.0 - 0.7 * (s.pos / Math.max(1, s.n - 1));
   // A wire in publication order. No editor chose a top item, so no item may
@@ -572,7 +564,7 @@ export function similar(a: Set<string>, b: Set<string>, weight: Map<string, numb
 export function sameStory(a: Set<string>, b: Set<string>, ta: number, tb: number,
                           weight: Map<string, number>): boolean {
   const both = shared(a, b);
-  if (both.length < 2 || similar(a, b, weight, both) < SIM_MIN) return false;
+  if (similar(a, b, weight, both) < SIM_MIN) return false;
   return both.length >= 3 || Math.abs(ta - tb) <= PAIR_WINDOW;
 }
 
@@ -632,7 +624,7 @@ export function cluster(stories: Story[]): Row[] {
   return out.map(summarise);
 }
 
-const standing = (s: Story) => prominence(s) * AUTHORITY[s.source];
+const standing = (s: Story) => prominence(s) * BY_NAME[s.source]?.authority;
 
 /** One row from the items that tell the same story. The item with the
  * highest standing gives the headline and the link. */
@@ -656,14 +648,13 @@ export function topic(c: Row): [string, number] {
   for (const [name, where] of FOCUS) if (where.test(text)) return [name, W_FOCUS];
   // A row from a focus source keeps that field, even when a wire gives the
   // headline.
-  for (const s of c.sources) if (SOURCE_TOPIC[s]) return [SOURCE_TOPIC[s], W_FOCUS];
+  for (const s of c.sources) if (BY_NAME[s]?.topic) return [BY_NAME[s].topic!, W_FOCUS];
   for (const [name, , what] of FOCUS) if (what.test(c.title)) return [name, W_FOCUS];
   for (const [name, rule, w] of TOPICS) if (rule.test(text)) return [name, w];
   if (SOFT_SLUG.test(text)) return ["soft", -1.8];
-  if (TECH_WORDS.test(c.title)) return ["tech", 0.35];
   // The HN front page is already a tech and science filter, so an item that
   // matches no section rule still belongs to that side of the list.
-  if (c.sources.includes("HN")) return ["tech", 0.35];
+  if (TECH_WORDS.test(c.title) || c.sources.includes("HN")) return ["tech", 0.35];
   return ["other", 0.0];
 }
 
@@ -730,7 +721,7 @@ const FOCUS_NAMES = new Set(FOCUS.map(([name]) => name));
  * focus fields. A row that HN or a magazine also carries has passed a
  * filter of the reader's fields, so it is not rationed. */
 export const general = (c: Row) =>
-  !FOCUS_NAMES.has(c.topic!) && c.sources.every((s) => GENERAL.has(s));
+  !FOCUS_NAMES.has(c.topic!) && c.sources.every((s) => BY_NAME[s]?.general);
 
 /** True for a general news row that may go on the front page: two sources
  * carry it, or an editor leads with it. */
@@ -753,13 +744,12 @@ export function select(clusters: Row[], n: number, front = false): Row[] {
   while (pool.length && picked.length < n) {
     // Culture and celebrity stay off the head of the page. They keep their
     // place further down, where they cost the reader nothing.
-    const hold = picked.length < SOFT_FLOOR;
-    let room = pool.flatMap((c, i) => (hold && SOFT_TOPICS.has(c.topic!) ? [] : [i]));
-    if (!room.length) room = pool.map((_, i) => i); // only soft rows are left
+    // When only soft rows are left, they may fill the head too.
+    const hold = picked.length < SOFT_FLOOR && pool.some((c) => !SOFT_TOPICS.has(c.topic!));
     let bestAt = -1;
     let bestAdj = -Infinity;
-    for (const i of room) {
-      const c = pool[i];
+    for (const [i, c] of pool.entries()) {
+      if (hold && SOFT_TOPICS.has(c.topic!)) continue;
       // The cost grows with each repeat but levels off, and it stops at
       // MAX_SPREAD. A mixed page is worth a small loss of quality, never
       // a large one, so a weak row cannot climb over a much better row.

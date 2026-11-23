@@ -1,18 +1,11 @@
 // Prints the ranked rows of the saved batch as JSON, for the parity check
 // with the Python version. app.py is in the history before commit d5c5fba.
-import { readFileSync } from "node:fs";
-import { FILES } from "./files";
-import { items, rank } from "../src/build";
-import { allowed, cluster, score, SOURCES, type Story } from "../src/rank";
+import { AT as at, BODIES } from "./files";
+import { items, rank, scored } from "../src/build";
+import { allowed, SOURCES } from "../src/rank";
 
-const dir = new URL("./bodies/", import.meta.url);
-const at = Date.parse(readFileSync(new URL("fetched_at.txt", dir), "utf8").trim()) / 1000;
-const stories: Story[] = [];
-for (const s of SOURCES) {
-  stories.push(...items(s, readFileSync(new URL(`${FILES[s.name]}.xml`, dir), "utf8"), at));
-}
-const cl = cluster(stories);
-for (const c of cl) c.score = score(c, at);
+const stories = SOURCES.flatMap((s, i) => items(s, BODIES[i], at));
+const cl = scored(stories, at);
 const round = (x: number, d: number) => Math.round(x * 10 ** d) / 10 ** d;
 console.log(JSON.stringify({
   pool: cl.length, dropped: cl.filter((c) => !allowed(c)).length,

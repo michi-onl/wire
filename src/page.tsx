@@ -1,5 +1,5 @@
 import type { Child } from "hono/jsx";
-import { age, HOMES, PAGES, SOURCES, type Row } from "./rank";
+import { age, BY_NAME, PAGES, SOURCES, type Row } from "./rank";
 
 export const SKY_500 = "#0ea5e9";
 export const SKY_50 = "#f0f9ff";
@@ -91,7 +91,7 @@ function subline(c: Row, at: number): Child[] {
   const bits: Child[] = [];
   if (c.sources.length > 1) bits.push(<span class="corro">{c.sources.length} sources</span>, " ");
   if (c.points !== null) bits.push(<span class="score">{c.points} points</span>, " ");
-  bits.push("by ", <a href={HOMES[c.source]} class="hnuser">{c.source}</a>, " ",
+  bits.push("by ", <a href={BY_NAME[c.source]?.home} class="hnuser">{c.source}</a>, " ",
     <span class="age">{age(c.published, at)}</span>);
   if (c.comments !== null) bits.push(" | ", `${c.comments} comments`);
   // Every source that carried the story, so the reader can compare accounts.
@@ -124,24 +124,13 @@ const StoryRow = ({ c, n, at }: { c: Row; n: number; at: number }) => (
   </>
 );
 
-function nav(path: string): Child[] {
-  const links: Child[] = [];
-  for (const p of PAGES) {
-    if (links.length) links.push(" | ");
-    const link = <a href={p.path}>{p.name}</a>;
-    links.push(p.path === path ? <span class="topsel">{link}</span> : link);
-  }
-  return links;
-}
+const nav = (path: string): Child[] => PAGES.flatMap((p, i) => {
+  const link = <a href={p.path}>{p.name}</a>;
+  return [i ? " | " : "", p.path === path ? <span class="topsel">{link}</span> : link];
+});
 
-function sources(): Child[] {
-  const links: Child[] = [];
-  for (const src of SOURCES) {
-    if (links.length) links.push(" | ");
-    links.push(<a href={src.home}>{src.name}</a>);
-  }
-  return links;
-}
+// The same on every page, so wire builds it once.
+const SOURCE_LINKS = SOURCES.flatMap((src, i) => [i ? " | " : "", <a href={src.home}>{src.name}</a>]);
 
 export interface PageData {
   rows: Row[];
@@ -210,7 +199,7 @@ export function render(p: PageData): string {
               <br />
               <div style="text-align:center;padding-bottom:16px">
                 <span class="yclinks">
-                  {sources()} | updated {p.wall}
+                  {SOURCE_LINKS} | updated {p.wall}
                 </span>
               </div>
             </td>

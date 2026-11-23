@@ -31,9 +31,9 @@ async function get(url: string): Promise<string> {
       headers: { "User-Agent": UA }, redirect: "follow", signal: AbortSignal.timeout(20_000),
     });
     if (r.ok) return r.text();
+    if (r.status !== 429) throw new HTTPStatusError(`${r.status} ${r.statusText}`, r.status);
     const reset = Math.floor(Number(r.headers.get("x-ratelimit-reset") ?? 1));
     const wait = (Number.isFinite(reset) ? reset : 1) + 1;
-    if (r.status !== 429) throw new HTTPStatusError(`${r.status} ${r.statusText}`, r.status);
     if (attempt === 2 || wait > RETRY_MAX) {
       throw new HTTPStatusError(`429 Too Many Requests (retry in ${wait}s)`, 429, wait);
     }

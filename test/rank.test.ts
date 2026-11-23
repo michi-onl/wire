@@ -2,7 +2,7 @@
 //
 //   npx vitest run
 import { describe, expect, test } from "vitest";
-import { empty, items, pages } from "../src/build";
+import { empty, items, pages, scored } from "../src/build";
 import { parseFeed, parseSitemap } from "../src/parse";
 import {
   allowed, cluster, keep, NEWS_MAX, now, political, POL_DROP, POL_MAJOR, POL_NAMES, POL_STRONG,
@@ -336,11 +336,7 @@ describe("score", () => {
   });
 });
 
-function build(rows: Story[]): Row[] {
-  const out = cluster(rows);
-  for (const c of out) c.score = score(c);
-  return out;
-}
+const build = (rows: Story[]): Row[] => scored(rows, now());
 
 // Each filler title uses different words. Similar titles would join into
 // one row and the test would then measure nothing.
